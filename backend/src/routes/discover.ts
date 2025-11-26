@@ -70,16 +70,14 @@ router.get(
       },
     });
 
-    // Filter out users without approved photos
-    const usersWithPhotos = users.filter(
-      user => user.profile && user.profile.photos.length > 0
-    );
+    // Filter out users without profiles (photos are optional for now)
+    const usersWithProfiles = users.filter(user => user.profile);
 
     res.json({
       success: true,
-      users: usersWithPhotos,
-      count: usersWithPhotos.length,
-      hasMore: usersWithPhotos.length === limit,
+      users: usersWithProfiles,
+      count: usersWithProfiles.length,
+      hasMore: usersWithProfiles.length === limit,
     });
   })
 );
