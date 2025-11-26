@@ -44,12 +44,12 @@ export default function SignupPage() {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="your.name@jecrc.ac.in"
+              placeholder="your.name@jecrcu.edu.in"
               required
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-900 placeholder:text-gray-400"
             />
             <p className="text-xs text-gray-500 mt-1">
-              Only @jecrc.ac.in emails are accepted
+              Only @jecrcu.edu.in emails are accepted
             </p>
           </div>
 

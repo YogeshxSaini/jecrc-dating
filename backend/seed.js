@@ -58,7 +58,7 @@ async function seed() {
     console.log('   Password: admin123');
     console.log('');
     console.log('👥 Students (all password: password123):');
-    console.log('   • student1@jecrc.ac.in');
+    console.log('   • student1@jecrcu.edu.in');
     console.log('   • student2@jecrc.ac.in');
     console.log('   • student3@jecrc.ac.in');
     console.log('   • student4@jecrc.ac.in');
