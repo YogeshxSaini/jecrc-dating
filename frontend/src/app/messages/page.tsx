@@ -39,6 +39,7 @@ export default function MessagesPage() {
   const loadMatches = async () => {
     try {
       const data = await api.getMatches();
+      // Backend returns formatted matches with 'user' field
       setMatches(data.matches || []);
     } catch (error) {
       console.error('Error loading matches:', error);
@@ -116,7 +117,8 @@ export default function MessagesPage() {
             ) : (
               <div>
                 {matches.map((match) => {
-                  const otherUser = match.userAId === localStorage.getItem('userId') ? match.userB : match.userA;
+                  // Backend returns formatted matches with 'user' field (the other user)
+                  const otherUser = match.user;
                   return (
                     <div
                       key={match.id}
@@ -127,10 +129,10 @@ export default function MessagesPage() {
                     >
                       <div className="flex items-center">
                         <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-400 to-pink-400 flex items-center justify-center text-white font-bold">
-                          {otherUser.displayName[0]}
+                          {otherUser?.displayName?.[0] || '?'}
                         </div>
                         <div className="ml-3 flex-1">
-                          <p className="font-medium text-gray-900">{otherUser.displayName}</p>
+                          <p className="font-medium text-gray-900">{otherUser?.displayName || 'Unknown'}</p>
                           <p className="text-sm text-gray-500">Click to chat</p>
                         </div>
                       </div>
@@ -149,11 +151,11 @@ export default function MessagesPage() {
                 <div className="p-4 border-b border-gray-200 bg-gray-50">
                   <div className="flex items-center">
                     <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-400 to-pink-400 flex items-center justify-center text-white font-bold">
-                      {(selectedMatch.userAId === localStorage.getItem('userId') ? selectedMatch.userB : selectedMatch.userA).displayName[0]}
+                      {selectedMatch.user?.displayName?.[0] || '?'}
                     </div>
                     <div className="ml-3">
                       <p className="font-medium text-gray-900">
-                        {(selectedMatch.userAId === localStorage.getItem('userId') ? selectedMatch.userB : selectedMatch.userA).displayName}
+                        {selectedMatch.user?.displayName || 'Unknown'}
                       </p>
                       <p className="text-sm text-gray-500">Active now</p>
                     </div>
