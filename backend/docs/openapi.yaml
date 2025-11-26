@@ -1,0 +1,228 @@
+openapi: 3.0.0
+info:
+  title: JECRC Dating API
+  description: API documentation for JECRC Campus Dating App
+  version: 1.0.0
+  contact:
+    email: support@jecrc.ac.in
+
+servers:
+  - url: http://localhost:4000
+    description: Development server
+  - url: https://api.jecrc-dating.com
+    description: Production server
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        displayName:
+          type: string
+        role:
+          type: string
+          enum: [USER, ADMIN]
+        verifiedSelfie:
+          type: boolean
+
+    Profile:
+      type: object
+      properties:
+        id:
+          type: string
+        userId:
+          type: string
+        bio:
+          type: string
+        interests:
+          type: array
+          items:
+            type: string
+        gender:
+          type: string
+          enum: [MALE, FEMALE, NON_BINARY, OTHER]
+
+    Match:
+      type: object
+      properties:
+        id:
+          type: string
+        user:
+          $ref: '#/components/schemas/User'
+        createdAt:
+          type: string
+          format: date-time
+
+paths:
+  /api/auth/request-verification:
+    post:
+      tags:
+        - Authentication
+      summary: Request OTP for email verification
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+              properties:
+                email:
+                  type: string
+                  format: email
+                loginMode:
+                  type: boolean
+                  default: false
+      responses:
+        '200':
+          description: OTP sent successfully
+        '400':
+          description: Invalid email domain
+
+  /api/auth/verify:
+    post:
+      tags:
+        - Authentication
+      summary: Verify OTP and create account or login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - otp
+              properties:
+                email:
+                  type: string
+                otp:
+                  type: string
+                password:
+                  type: string
+                displayName:
+                  type: string
+      responses:
+        '200':
+          description: Verification successful
+
+  /api/auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: Login with email and password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                password:
+                  type: string
+      responses:
+        '200':
+          description: Login successful
+        '401':
+          description: Invalid credentials
+
+  /api/discover:
+    get:
+      tags:
+        - Discovery
+      summary: Get discovery feed
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: Discovery feed retrieved
+
+  /api/likes:
+    post:
+      tags:
+        - Matching
+      summary: Like a user
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - toUserId
+              properties:
+                toUserId:
+                  type: string
+      responses:
+        '200':
+          description: Like recorded
+
+  /api/matches:
+    get:
+      tags:
+        - Matching
+      summary: Get all matches
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Matches retrieved
+
+  /api/chat/{matchId}/messages:
+    get:
+      tags:
+        - Chat
+      summary: Get messages for a match
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: matchId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Messages retrieved
+
+  /api/admin/photo-verifications:
+    get:
+      tags:
+        - Admin
+      summary: Get photo verification queue
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Verification queue retrieved

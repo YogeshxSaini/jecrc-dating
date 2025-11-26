@@ -1,0 +1,262 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User model - core authentication and identity
+model User {
+  id                String   @id @default(uuid())
+  email             String   @unique
+  passwordHash      String?  // Optional for passwordless authentication
+  displayName       String
+  role              Role     @default(USER)
+  isActive          Boolean  @default(true)
+  isBanned          Boolean  @default(false)
+  banReason         String?
+  emailVerified     Boolean  @default(false)
+  verifiedSelfie    Boolean  @default(false) // Selfie verification approved
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  lastActiveAt      DateTime @default(now())
+
+  // Relations
+  profile           Profile?
+  otps              OTP[]
+  refreshTokens     RefreshToken[]
+  likesGiven        Like[]              @relation("LikesGiven")
+  likesReceived     Like[]              @relation("LikesReceived")
+  matchesAsUserA    Match[]             @relation("MatchUserA")
+  matchesAsUserB    Match[]             @relation("MatchUserB")
+  messages          Message[]
+  reportsCreated    Report[]            @relation("ReportsCreated")
+  reportsAgainst    Report[]            @relation("ReportsAgainst")
+  photoVerification PhotoVerification?
+  notifications     Notification[]
+
+  @@index([email])
+  @@index([isActive, isBanned])
+  @@map("users")
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+// OTP model - for email verification
+model OTP {
+  id         String   @id @default(uuid())
+  userId     String?
+  email      String
+  otpHash    String   // Hashed OTP, never store plaintext
+  expiresAt  DateTime
+  verified   Boolean  @default(false)
+  attempts   Int      @default(0) // Rate limiting on verification attempts
+  loginMode  Boolean  @default(false) // True if OTP is for login, not signup
+  createdAt  DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([email, verified, expiresAt])
+  @@map("otps")
+}
+
+// Refresh tokens for JWT authentication
+model RefreshToken {
+  id        String   @id @default(uuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
+  @@map("refresh_tokens")
+}
+
+// Profile model - user's dating profile information
+model Profile {
+  id          String    @id @default(uuid())
+  userId      String    @unique
+  bio         String?   @db.Text
+  interests   String[]  // Array of interest tags
+  gender      Gender?
+  lookingFor  Gender?
+  dateOfBirth DateTime?
+  department  String?   // University department
+  year        Int?      // Year of study (1-4)
+  photos      Photo[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("profiles")
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  NON_BINARY
+  OTHER
+}
+
+// Photo model - profile photos with moderation
+model Photo {
+  id           String          @id @default(uuid())
+  profileId    String
+  url          String
+  thumbnailUrl String?
+  order        Int             @default(0) // Display order
+  moderationStatus ModerationStatus @default(PENDING)
+  moderationReason String?
+  isProfilePic Boolean         @default(false)
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId])
+  @@index([moderationStatus])
+  @@map("photos")
+}
+
+enum ModerationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+// PhotoVerification - selfie verification for verified badge
+model PhotoVerification {
+  id        String          @id @default(uuid())
+  userId    String          @unique
+  selfieUrl String
+  status    ModerationStatus @default(PENDING)
+  reviewedBy String?        // Admin user ID
+  reviewedAt DateTime?
+  reason    String?
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@map("photo_verifications")
+}
+
+// Like model - user likes another user
+model Like {
+  id         String   @id @default(uuid())
+  fromUserId String
+  toUserId   String
+  createdAt  DateTime @default(now())
+
+  fromUser User @relation("LikesGiven", fields: [fromUserId], references: [id], onDelete: Cascade)
+  toUser   User @relation("LikesReceived", fields: [toUserId], references: [id], onDelete: Cascade)
+
+  @@unique([fromUserId, toUserId]) // Prevent duplicate likes
+  @@index([fromUserId])
+  @@index([toUserId])
+  @@map("likes")
+}
+
+// Match model - mutual likes create a match
+model Match {
+  id        String    @id @default(uuid())
+  userAId   String
+  userBId   String
+  createdAt DateTime  @default(now())
+  
+  // Relations
+  userA    User      @relation("MatchUserA", fields: [userAId], references: [id], onDelete: Cascade)
+  userB    User      @relation("MatchUserB", fields: [userBId], references: [id], onDelete: Cascade)
+  messages Message[]
+
+  @@unique([userAId, userBId])
+  @@index([userAId])
+  @@index([userBId])
+  @@map("matches")
+}
+
+// Message model - chat messages between matched users
+model Message {
+  id        String   @id @default(uuid())
+  matchId   String
+  senderId  String
+  content   String   @db.Text
+  readAt    DateTime?
+  createdAt DateTime @default(now())
+
+  match  Match @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  sender User  @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([matchId, createdAt])
+  @@index([senderId])
+  @@map("messages")
+}
+
+// Report model - users can report inappropriate content/behavior
+model Report {
+  id          String       @id @default(uuid())
+  reporterId  String
+  reportedId  String
+  reason      String
+  description String?      @db.Text
+  evidence    Json?        // Screenshots, message IDs, etc.
+  status      ReportStatus @default(PENDING)
+  reviewedBy  String?      // Admin user ID
+  reviewedAt  DateTime?
+  resolution  String?      @db.Text
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  reporter User @relation("ReportsCreated", fields: [reporterId], references: [id], onDelete: Cascade)
+  reported User @relation("ReportsAgainst", fields: [reportedId], references: [id], onDelete: Cascade)
+
+  @@index([reportedId, status])
+  @@index([status])
+  @@map("reports")
+}
+
+enum ReportStatus {
+  PENDING
+  REVIEWED
+  RESOLVED
+  DISMISSED
+}
+
+// Notification model - for match notifications, messages, etc.
+model Notification {
+  id        String           @id @default(uuid())
+  userId    String
+  type      NotificationType
+  title     String
+  message   String
+  data      Json?            // Additional context (matchId, messageId, etc.)
+  read      Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, read])
+  @@map("notifications")
+}
+
+enum NotificationType {
+  NEW_MATCH
+  NEW_MESSAGE
+  LIKE_RECEIVED
+  PROFILE_VERIFIED
+  ACCOUNT_WARNING
+}
