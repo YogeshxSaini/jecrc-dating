@@ -178,6 +178,11 @@ class ApiClient {
     return response.data;
   }
 
+  async getReceivedLikes() {
+    const response = await this.client.get('/api/likes/received');
+    return response.data;
+  }
+
   // Matches endpoints
   async getMatches() {
     const response = await this.client.get('/api/matches');

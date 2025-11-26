@@ -30,6 +30,9 @@ export const prisma = new PrismaClient();
 const app: Application = express();
 const server = http.createServer(app);
 
+// Trust proxy for ngrok/reverse proxies
+app.set('trust proxy', 1);
+
 // CORS configuration - allow multiple origins
 const allowedOrigins: string[] = [
   'http://localhost:3000',
