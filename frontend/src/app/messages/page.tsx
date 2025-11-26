@@ -16,6 +16,7 @@ export default function MessagesPage() {
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string>('');
 
   useEffect(() => {
     const token = localStorage.getItem('accessToken');
@@ -23,6 +24,18 @@ export default function MessagesPage() {
       router.push('/login');
       return;
     }
+    
+    // Get current user ID
+    const fetchUserData = async () => {
+      try {
+        const userData = await api.getMe();
+        setCurrentUserId(userData.user.id);
+      } catch (error) {
+        console.error('Error fetching user data:', error);
+      }
+    };
+    
+    fetchUserData();
     loadMatches();
   }, [router]);
 
@@ -170,7 +183,7 @@ export default function MessagesPage() {
                     </div>
                   ) : (
                     messages.map((msg) => {
-                      const isMe = msg.senderId === localStorage.getItem('userId');
+                      const isMe = msg.senderId === currentUserId;
                       return (
                         <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
                           <div className={`max-w-xs px-4 py-2 rounded-lg ${
