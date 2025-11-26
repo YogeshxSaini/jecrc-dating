@@ -10,10 +10,10 @@ async function seed() {
     // Create admin user
     const adminPassword = await bcrypt.hash('admin123', 10);
     const admin = await prisma.user.upsert({
-      where: { email: 'admin@jecrc.ac.in' },
+      where: { email: 'admin@jecrcu.edu.in' },
       update: {},
       create: {
-        email: 'admin@jecrc.ac.in',
+        email: 'admin@jecrcu.edu.in',
         displayName: 'Admin User',
         passwordHash: adminPassword,
         emailVerified: true,
@@ -27,10 +27,10 @@ async function seed() {
     for (let i = 1; i <= 5; i++) {
       const password = await bcrypt.hash('password123', 10);
       await prisma.user.upsert({
-        where: { email: `student${i}@jecrc.ac.in` },
+        where: { email: `student${i}@jecrcu.edu.in` },
         update: {},
         create: {
-          email: `student${i}@jecrc.ac.in`,
+          email: `student${i}@jecrcu.edu.in`,
           displayName: `Student ${i}`,
           passwordHash: password,
           emailVerified: true,
@@ -46,7 +46,7 @@ async function seed() {
           }
         }
       });
-      console.log(`✅ Created student${i}@jecrc.ac.in`);
+      console.log(`✅ Created student${i}@jecrcu.edu.in`);
     }
     
     console.log('\n✅ Seed completed successfully!\n');
@@ -54,15 +54,15 @@ async function seed() {
     console.log('Test Accounts:');
     console.log('═══════════════════════════════════════');
     console.log('👑 Admin:');
-    console.log('   Email: admin@jecrc.ac.in');
+    console.log('   Email: admin@jecrcu.edu.in');
     console.log('   Password: admin123');
     console.log('');
     console.log('👥 Students (all password: password123):');
     console.log('   • student1@jecrcu.edu.in');
-    console.log('   • student2@jecrc.ac.in');
-    console.log('   • student3@jecrc.ac.in');
-    console.log('   • student4@jecrc.ac.in');
-    console.log('   • student5@jecrc.ac.in');
+    console.log('   • student2@jecrcu.edu.in');
+    console.log('   • student3@jecrcu.edu.in');
+    console.log('   • student4@jecrcu.edu.in');
+    console.log('   • student5@jecrcu.edu.in');
     console.log('═══════════════════════════════════════\n');
     
   } catch (error) {
