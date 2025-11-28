@@ -14,18 +14,14 @@ redisClient.on('error', (err) => {
 
 redisClient.connect().catch(console.error);
 
-// Global rate limiter
+// Global rate limiter - use memory store to avoid Redis issues
 export const rateLimiter = rateLimit({
   windowMs: config.rateLimitWindowMs,
   max: config.rateLimitMaxRequests,
   message: { success: false, error: 'Too many requests, please try again later' },
   standardHeaders: true,
   legacyHeaders: false,
-  // Use Redis store if available, fallback to memory store
-  store: new RedisStore({
-    sendCommand: (...args: string[]) => redisClient.sendCommand(args),
-    prefix: 'rl:',
-  }),
+  // Use memory store for now to avoid Redis connection issues
 });
 
 // Stricter rate limiter for auth endpoints
@@ -35,10 +31,7 @@ export const authRateLimiter = rateLimit({
   message: { success: false, error: 'Too many authentication attempts, please try again later' },
   standardHeaders: true,
   legacyHeaders: false,
-  store: new RedisStore({
-    sendCommand: (...args: string[]) => redisClient.sendCommand(args),
-    prefix: 'rl:auth:',
-  }),
+  // Use memory store for now
 });
 
 // Rate limiter for likes/swipes
@@ -48,10 +41,7 @@ export const likeRateLimiter = rateLimit({
   message: { success: false, error: 'Slow down! You are liking too fast' },
   standardHeaders: true,
   legacyHeaders: false,
-  store: new RedisStore({
-    sendCommand: (...args: string[]) => redisClient.sendCommand(args),
-    prefix: 'rl:likes:',
-  }),
+  // Use memory store for now
 });
 
 // Rate limiter for messages
@@ -61,10 +51,7 @@ export const messageRateLimiter = rateLimit({
   message: { success: false, error: 'You are sending messages too quickly' },
   standardHeaders: true,
   legacyHeaders: false,
-  store: new RedisStore({
-    sendCommand: (...args: string[]) => redisClient.sendCommand(args),
-    prefix: 'rl:messages:',
-  }),
+  // Use memory store for now
 });
 
 export { redisClient };
