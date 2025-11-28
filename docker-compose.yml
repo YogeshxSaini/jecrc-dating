@@ -121,8 +121,8 @@ services:
     depends_on:
       - backend
     environment:
-      NEXT_PUBLIC_API_URL: https://59b4f895a406.ngrok-free.app
-      NEXT_PUBLIC_SOCKET_URL: https://59b4f895a406.ngrok-free.app
+      NEXT_PUBLIC_API_URL: https://e79b7776f70a.ngrok-free.app
+      NEXT_PUBLIC_SOCKET_URL: https://e79b7776f70a.ngrok-free.app
     ports:
       - "3000:3000"
     volumes:
