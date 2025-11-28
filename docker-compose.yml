@@ -103,7 +103,7 @@ services:
       S3_USE_PATH_STYLE: "true"
       PORT: 4000
       NODE_ENV: production
-      FRONTEND_URL: http://localhost:3000
+      FRONTEND_URL: https://a28b01305f38.ngrok-free.app
       RATE_LIMIT_WINDOW_MS: 900000
       RATE_LIMIT_MAX_REQUESTS: 100
     ports:

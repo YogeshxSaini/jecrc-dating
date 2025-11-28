@@ -37,8 +37,8 @@ app.set('trust proxy', 1);
 const allowedOrigins: string[] = [
   'http://localhost:3000',
   'http://192.168.29.234:3000',
-  'https://b9942e41313a.ngrok-free.app',
-  'https://59b4f895a406.ngrok-free.app',
+  'https://a28b01305f38.ngrok-free.app',
+  'https://e79b7776f70a.ngrok-free.app',
   process.env.FRONTEND_URL,
 ].filter((origin): origin is string => Boolean(origin));
 
