@@ -1,16 +1,11 @@
 services:
-  # PostgreSQL Database
-  - type: pserv
-    name: jecrc-dating-db
-    plan: free
-
   # Web Service (Backend API)
   - type: web
     name: jecrc-dating-backend
     env: docker
     plan: free
     repo: https://github.com/YogeshxSaini/jecrc-dating.git
-    rootDir: backend
+    region: oregon
     healthCheckPath: /health
     envVars:
       - key: NODE_ENV
@@ -34,3 +29,8 @@ services:
       - key: FRONTEND_URL
         value: https://jecrc-dating.pages.dev
       # Note: Add REDIS_URL manually after setting up Upstash
+
+databases:
+  - name: jecrc-dating-db
+    plan: free
+    databaseName: jecrc_dating
