@@ -136,26 +136,38 @@ main() {
     
     # Ask user what to deploy
     echo "What would you like to deploy?"
-    echo "1) Backend only (Railway)"
-    echo "2) Frontend only (Cloudflare Pages)"
-    echo "3) Both backend and frontend"
-    echo "4) Show environment variables guide"
+    echo "1) 🆓 FREE HOSTING (Render + Cloudflare - Recommended)"
+    echo "2) 💰 Paid hosting (Railway + Cloudflare)"
+    echo "3) Frontend only (Cloudflare Pages)"
+    echo "4) Show free hosting options"
+    echo "5) Show environment variables guide"
     
-    read -p "Enter your choice (1-4): " choice
+    read -p "Enter your choice (1-5): " choice
     
     case $choice in
         1)
-            deploy_backend
+            print_success "🆓 FREE HOSTING SELECTED!"
+            print_status "Running free deployment script..."
+            ./deploy-free.sh
             ;;
         2)
-            deploy_frontend
-            ;;
-        3)
             deploy_backend
             echo ""
             deploy_frontend
             ;;
+        3)
+            deploy_frontend
+            ;;
         4)
+            print_status "📋 FREE HOSTING OPTIONS:"
+            echo "• Render.com - Free backend hosting"
+            echo "• Neon.tech - Free PostgreSQL"  
+            echo "• Upstash.com - Free Redis"
+            echo "• Cloudflare Pages - Free frontend"
+            echo ""
+            print_status "📚 Check RENDER_GUIDE.md for step-by-step instructions"
+            ;;
+        5)
             update_env_vars
             ;;
         *)

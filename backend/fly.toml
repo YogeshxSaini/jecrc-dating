@@ -1,0 +1,48 @@
+# Fly.io deployment configuration
+app = "jecrc-dating-backend"
+primary_region = "ord"
+
+[experimental]
+  auto_rollback = true
+
+[build]
+  dockerfile = "Dockerfile"
+
+[[services]]
+  http_checks = []
+  internal_port = 4000
+  processes = ["app"]
+  protocol = "tcp"
+  script_checks = []
+  [services.concurrency]
+    hard_limit = 25
+    soft_limit = 20
+    type = "connections"
+
+  [[services.ports]]
+    force_https = true
+    handlers = ["http"]
+    port = 80
+
+  [[services.ports]]
+    handlers = ["tls", "http"]
+    port = 443
+
+  [[services.tcp_checks]]
+    grace_period = "1s"
+    interval = "15s"
+    restart_limit = 0
+    timeout = "2s"
+
+[env]
+  NODE_ENV = "production"
+  PORT = "4000"
+  ALLOWED_EMAIL_DOMAIN = "jecrcu.edu.in"
+  EMAIL_PROVIDER = "console"
+  EMAIL_FROM = "noreply@jecrcu.edu.in"
+
+# Free tier resources
+[[vm]]
+  cpu_kind = "shared"
+  cpus = 1
+  memory_mb = 256

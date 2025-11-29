@@ -1,0 +1,50 @@
+# Render deployment configuration
+services:
+  - type: web
+    name: jecrc-dating-backend
+    runtime: docker
+    repo: https://github.com/YogeshxSaini/jecrc-dating.git
+    rootDir: backend
+    plan: free
+    region: oregon
+    branch: main
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 4000
+      - key: DATABASE_URL
+        fromDatabase:
+          name: jecrc-dating-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: jecrc-dating-redis
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      - key: ALLOWED_EMAIL_DOMAIN
+        value: jecrcu.edu.in
+      - key: EMAIL_PROVIDER
+        value: console
+      - key: EMAIL_FROM
+        value: noreply@jecrcu.edu.in
+      - key: FRONTEND_URL
+        value: https://jecrc-dating.pages.dev
+
+  # Free PostgreSQL database
+  - type: pserv
+    name: jecrc-dating-db
+    plan: free
+    databaseName: jecrc_dating
+    region: oregon
+
+  # Free Redis instance
+  - type: redis
+    name: jecrc-dating-redis
+    plan: free
+    region: oregon
