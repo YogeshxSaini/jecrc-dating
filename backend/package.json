@@ -16,7 +16,8 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
-    "seed": "tsx src/utils/seed.ts"
+    "seed": "tsx src/utils/seed.ts",
+    "add-user": "tsx src/scripts/addUser.ts"
   },
   "keywords": ["dating", "university", "express", "typescript"],
   "author": "",

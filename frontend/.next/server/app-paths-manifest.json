@@ -1,18 +1,19 @@
 {
   "/_not-found": "app/_not-found.js",
-  "/discover/page": "app/discover/page.js",
-  "/contact/page": "app/contact/page.js",
   "/login/page": "app/login/page.js",
+  "/contact/page": "app/contact/page.js",
   "/dashboard/page": "app/dashboard/page.js",
+  "/likes/page": "app/likes/page.js",
   "/help/page": "app/help/page.js",
-  "/matches/page": "app/matches/page.js",
-  "/messages/page": "app/messages/page.js",
+  "/discover/page": "app/discover/page.js",
   "/page": "app/page.js",
-  "/profile/page": "app/profile/page.js",
   "/privacy/page": "app/privacy/page.js",
-  "/settings/page": "app/settings/page.js",
+  "/messages/page": "app/messages/page.js",
   "/safety/page": "app/safety/page.js",
-  "/signup/page": "app/signup/page.js",
+  "/matches/page": "app/matches/page.js",
+  "/verify/page": "app/verify/page.js",
+  "/settings/page": "app/settings/page.js",
   "/terms/page": "app/terms/page.js",
-  "/likes/page": "app/likes/page.js"
+  "/signup/page": "app/signup/page.js",
+  "/profile/page": "app/profile/page.js"
 }
