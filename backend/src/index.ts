@@ -58,8 +58,10 @@ app.use(cors({
     // Allow requests with no origin (like mobile apps or curl)
     if (!origin) return callback(null, true);
     
-    // Check if origin is allowed or matches trycloudflare.com pattern
-    if (allowedOrigins.includes(origin) || origin.endsWith('.trycloudflare.com')) {
+    // Check if origin is allowed or matches cloudflare patterns
+    if (allowedOrigins.includes(origin) || 
+        origin.endsWith('.trycloudflare.com') || 
+        origin.endsWith('.pages.dev')) {
       callback(null, true);
     } else {
       callback(new Error('Not allowed by CORS'));
