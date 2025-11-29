@@ -3,16 +3,25 @@ import RedisStore from 'rate-limit-redis';
 import { createClient } from 'redis';
 import config from '../config';
 
-// Create Redis client for rate limiting
-const redisClient = createClient({
-  url: config.redisUrl,
-});
+// Create Redis client for rate limiting (optional)
+let redisClient: any = null;
 
-redisClient.on('error', (err) => {
-  console.error('Redis rate limiter error:', err);
-});
+// Only connect to Redis if URL is provided
+if (config.redisUrl && config.redisUrl !== 'redis://localhost:6379') {
+  redisClient = createClient({
+    url: config.redisUrl,
+  });
 
-redisClient.connect().catch(console.error);
+  redisClient.on('error', (err: any) => {
+    console.warn('Redis rate limiter error (falling back to memory store):', err.message);
+  });
+
+  redisClient.connect().catch((err: any) => {
+    console.warn('Redis connection failed, using memory store instead:', err.message);
+  });
+} else {
+  console.log('Redis not configured, using memory store for rate limiting');
+}
 
 // Global rate limiter - use memory store to avoid Redis issues
 export const rateLimiter = rateLimit({
