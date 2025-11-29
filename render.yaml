@@ -29,7 +29,7 @@ services:
       - key: EMAIL_FROM
         value: noreply@jecrcu.edu.in
       - key: FRONTEND_URL
-        value: https://ef8fd1c1.jecrc-dating.pages.dev
+        value: https://dayalcolonizers.xyz
       # Note: Add REDIS_URL manually after setting up Upstash
 
 databases:

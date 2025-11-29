@@ -39,6 +39,7 @@ const allowedOrigins: string[] = [
   'http://192.168.29.234:3000',
   'https://a28b01305f38.ngrok-free.app',
   'https://e79b7776f70a.ngrok-free.app',
+  'https://dayalcolonizers.xyz',
   process.env.FRONTEND_URL,
 ].filter((origin): origin is string => Boolean(origin));
 
