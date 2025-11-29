@@ -6,6 +6,8 @@ services:
     plan: free
     repo: https://github.com/YogeshxSaini/jecrc-dating.git
     region: oregon
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
     healthCheckPath: /health
     envVars:
       - key: NODE_ENV
