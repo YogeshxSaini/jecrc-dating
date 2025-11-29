@@ -9,20 +9,43 @@
 
 ## 🚀 Quick Setup (5 minutes)
 
-### Step 1: Prepare Your Repository
-Your repository is already configured with `render.yaml`! ✅
+### Step 1: Create PostgreSQL Database
 
-### Step 2: Deploy to Render
+1. **Go to [render.com](https://render.com)** and sign up with GitHub
+2. **Click "New +"** → **"PostgreSQL"**
+3. **Settings**:
+   - Name: `jecrc-dating-db`
+   - Plan: **Free**
+   - Region: **Oregon (US West)**
+4. **Click "Create Database"**
+5. **Copy the connection string** (External Database URL)
 
-1. **Go to [render.com](https://render.com)**
-2. **Sign up** with your GitHub account
-3. **Click "New +"** → **"Blueprint"**
-4. **Connect GitHub** → Select `YogeshxSaini/jecrc-dating`
-5. **Click "Connect"** - Render will automatically:
-   - Create web service (your backend API)
-   - Create PostgreSQL database
-   - Create Redis instance
-   - Deploy with Docker
+### Step 2: Create Web Service (Backend)
+
+1. **Click "New +"** → **"Web Service"**
+2. **Connect GitHub** → Select `YogeshxSaini/jecrc-dating`
+3. **Settings**:
+   - Name: `jecrc-dating-backend`
+   - Root Directory: `backend`
+   - Runtime: **Docker**
+   - Plan: **Free**
+   - Auto-Deploy: **Yes**
+
+### Step 3: Add Environment Variables
+
+In your web service settings, add these environment variables:
+
+```bash
+NODE_ENV=production
+PORT=4000
+DATABASE_URL=postgresql://[paste-your-database-url]
+JWT_SECRET=your-super-secure-secret-change-this
+JWT_REFRESH_SECRET=another-super-secure-secret-change-this
+ALLOWED_EMAIL_DOMAIN=jecrcu.edu.in
+EMAIL_PROVIDER=console
+EMAIL_FROM=noreply@jecrcu.edu.in
+FRONTEND_URL=https://jecrc-dating.pages.dev
+```
 
 ### Step 3: Configure Environment Variables
 
