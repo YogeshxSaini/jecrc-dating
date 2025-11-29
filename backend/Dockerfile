@@ -49,4 +49,5 @@ COPY --from=build /app/node_modules/.prisma ./node_modules/.prisma
 ENV NODE_ENV=production
 EXPOSE 4000
 
-CMD ["node", "dist/index.js"]
+# Run migrations and start server
+CMD ["sh", "-c", "npx prisma migrate deploy && node dist/index.js"]
