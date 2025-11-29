@@ -26,8 +26,9 @@ export const errorHandler = (
     });
   }
 
-  // Log unexpected errors
+  // Log unexpected errors with stack trace
   console.error('Unexpected error:', err);
+  console.error('Stack trace:', err.stack);
 
   // Don't leak error details in production
   const message = process.env.NODE_ENV === 'production' 
@@ -37,6 +38,7 @@ export const errorHandler = (
   return res.status(500).json({
     success: false,
     error: message,
+    ...(process.env.NODE_ENV !== 'production' && { stack: err.stack }),
   });
 };
 

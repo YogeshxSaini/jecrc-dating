@@ -44,7 +44,9 @@ RUN npm install --omit=dev
 # Copy built files and Prisma
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/prisma ./prisma
-COPY --from=build /app/node_modules/.prisma ./node_modules/.prisma
+
+# Generate Prisma Client in production
+RUN npx prisma generate
 
 ENV NODE_ENV=production
 EXPOSE 4000
