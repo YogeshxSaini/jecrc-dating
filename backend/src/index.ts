@@ -109,6 +109,27 @@ app.get('/health', (req: Request, res: Response) => {
   });
 });
 
+// Debug endpoint to test database connection
+app.get('/debug/db', async (req: Request, res: Response) => {
+  try {
+    await prisma.$connect();
+    const userCount = await prisma.user.count();
+    res.json({
+      success: true,
+      database: 'connected',
+      userCount,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      database: 'failed',
+      error: error.message,
+      stack: error.stack,
+    });
+  }
+});
+
 // API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/profile', profileRoutes);
