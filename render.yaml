@@ -7,7 +7,7 @@ services:
   # Web Service (Backend API)
   - type: web
     name: jecrc-dating-backend
-    runtime: docker
+    env: docker
     plan: free
     repo: https://github.com/YogeshxSaini/jecrc-dating.git
     rootDir: backend
@@ -18,8 +18,7 @@ services:
       - key: PORT
         value: 4000
       - key: DATABASE_URL
-        fromService:
-          type: pserv
+        fromDatabase:
           name: jecrc-dating-db
           property: connectionString
       - key: JWT_SECRET
@@ -34,5 +33,4 @@ services:
         value: noreply@jecrcu.edu.in
       - key: FRONTEND_URL
         value: https://jecrc-dating.pages.dev
-      # Note: Redis not available in free tier via Blueprint
-      # You'll need to use an external Redis service like Upstash
+      # Note: Add REDIS_URL manually after setting up Upstash
