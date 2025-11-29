@@ -1,15 +1,7 @@
-# Render Blueprint Configuration
 services:
   # PostgreSQL Database
   - type: pserv
     name: jecrc-dating-db
-    plan: free
-    databaseName: jecrc_dating
-    user: jecrc_user
-
-  # Redis Instance  
-  - type: redis
-    name: jecrc-dating-redis
     plan: free
 
   # Web Service (Backend API)
@@ -19,7 +11,6 @@ services:
     plan: free
     repo: https://github.com/YogeshxSaini/jecrc-dating.git
     rootDir: backend
-    dockerfilePath: backend/Dockerfile
     healthCheckPath: /health
     envVars:
       - key: NODE_ENV
@@ -30,11 +21,6 @@ services:
         fromService:
           type: pserv
           name: jecrc-dating-db
-          property: connectionString
-      - key: REDIS_URL
-        fromService:
-          type: redis
-          name: jecrc-dating-redis
           property: connectionString
       - key: JWT_SECRET
         generateValue: true
@@ -48,3 +34,5 @@ services:
         value: noreply@jecrcu.edu.in
       - key: FRONTEND_URL
         value: https://jecrc-dating.pages.dev
+      # Note: Redis not available in free tier via Blueprint
+      # You'll need to use an external Redis service like Upstash

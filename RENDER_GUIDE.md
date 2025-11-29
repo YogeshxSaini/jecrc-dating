@@ -31,14 +31,27 @@
    - Plan: **Free**
    - Auto-Deploy: **Yes**
 
-### Step 3: Add Environment Variables
+### Step 3: Create Free Redis (Upstash)
 
-In your web service settings, add these environment variables:
+Since Render free tier doesn't include Redis, we'll use Upstash:
+
+1. **Go to [upstash.com](https://upstash.com)** and sign up
+2. **Click "Create Database"**
+3. **Settings**:
+   - Name: `jecrc-dating-redis`
+   - Type: **Redis**
+   - Region: **US-West-1** (closest to Render Oregon)
+4. **Copy the Redis URL** from dashboard
+
+### Step 4: Add Environment Variables
+
+In your Render web service settings, add these environment variables:
 
 ```bash
 NODE_ENV=production
 PORT=4000
-DATABASE_URL=postgresql://[paste-your-database-url]
+DATABASE_URL=postgresql://[paste-your-database-url-from-step-1]
+REDIS_URL=redis://[paste-your-upstash-redis-url]
 JWT_SECRET=your-super-secure-secret-change-this
 JWT_REFRESH_SECRET=another-super-secure-secret-change-this
 ALLOWED_EMAIL_DOMAIN=jecrcu.edu.in
