@@ -17,17 +17,17 @@ redisClient.connect().catch(console.error);
 // Global rate limiter - use memory store to avoid Redis issues
 export const rateLimiter = rateLimit({
   windowMs: config.rateLimitWindowMs,
-  max: config.rateLimitMaxRequests,
+  max: config.rateLimitMaxRequests * 3, // Triple the limit for development
   message: { success: false, error: 'Too many requests, please try again later' },
   standardHeaders: true,
   legacyHeaders: false,
   // Use memory store for now to avoid Redis connection issues
 });
 
-// Stricter rate limiter for auth endpoints
+// Stricter rate limiter for auth endpoints - relaxed for development
 export const authRateLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5, // 5 requests per window
+  windowMs: 5 * 60 * 1000, // 5 minutes (reduced from 15)
+  max: 20, // 20 requests per window (increased from 5)
   message: { success: false, error: 'Too many authentication attempts, please try again later' },
   standardHeaders: true,
   legacyHeaders: false,

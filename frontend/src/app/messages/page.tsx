@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { api } from '@/lib/api';
+import { initializeSocket, joinMatch, leaveMatch, sendMessage, onNewMessage, offNewMessage, startTyping, stopTyping, onUserTyping, onUserStopTyping, offTypingEvents } from '@/lib/socket';
 
 export default function MessagesPage() {
   const router = useRouter();
@@ -17,6 +18,13 @@ export default function MessagesPage() {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string>('');
+  const [isTyping, setIsTyping] = useState(false);
+  const [typingTimeout, setTypingTimeout] = useState<NodeJS.Timeout | null>(null);
+  const [otherUserTyping, setOtherUserTyping] = useState(false);
+  const [typingUser, setTypingUser] = useState<string>('');
+  
+  // Ref for auto-scrolling to bottom
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const token = localStorage.getItem('accessToken');
@@ -24,6 +32,9 @@ export default function MessagesPage() {
       router.push('/login');
       return;
     }
+    
+    // Initialize Socket.IO connection
+    const socket = initializeSocket(token);
     
     // Get current user ID
     const fetchUserData = async () => {
@@ -37,7 +48,38 @@ export default function MessagesPage() {
     
     fetchUserData();
     loadMatches();
-  }, [router]);
+    
+    // Listen for new messages
+    onNewMessage((data) => {
+      if (data.matchId === selectedMatch?.id) {
+        setMessages(prev => [...prev, data.message]);
+      }
+    });
+    
+    // Listen for typing indicators
+    onUserTyping((data) => {
+      if (data.matchId === selectedMatch?.id && data.userId !== currentUserId) {
+        setOtherUserTyping(true);
+        setTypingUser(data.displayName || 'Someone');
+      }
+    });
+    
+    onUserStopTyping((data) => {
+      if (data.matchId === selectedMatch?.id && data.userId !== currentUserId) {
+        setOtherUserTyping(false);
+        setTypingUser('');
+      }
+    });
+    
+    // Cleanup on unmount
+    return () => {
+      offNewMessage();
+      offTypingEvents();
+      if (selectedMatch) {
+        leaveMatch(selectedMatch.id);
+      }
+    };
+  }, [router, selectedMatch?.id]);
 
   useEffect(() => {
     if (matchId && matches.length > 0) {
@@ -45,6 +87,8 @@ export default function MessagesPage() {
       if (match) {
         setSelectedMatch(match);
         loadMessages(matchId);
+        // Join the match room for real-time messaging
+        joinMatch(matchId);
       }
     }
   }, [matchId, matches]);
@@ -70,17 +114,45 @@ export default function MessagesPage() {
     }
   };
 
+  // Auto-scroll to bottom function
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  // Auto-scroll when messages change
+  useEffect(() => {
+    if (messages.length > 0) {
+      // Small delay to ensure DOM is updated
+      setTimeout(scrollToBottom, 100);
+    }
+  }, [messages]);
+
+  // Auto-scroll when typing status changes
+  useEffect(() => {
+    if (otherUserTyping) {
+      // Small delay to ensure typing indicator is rendered
+      setTimeout(scrollToBottom, 150);
+    }
+  }, [otherUserTyping]);
+
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newMessage.trim() || !selectedMatch) return;
 
     setSending(true);
+    const messageContent = newMessage;
+    setNewMessage(''); // Clear input immediately for better UX
+    
     try {
-      await api.sendMessage(selectedMatch.id, newMessage);
-      setNewMessage('');
-      await loadMessages(selectedMatch.id);
+      // Send via Socket.IO for real-time delivery
+      sendMessage(selectedMatch.id, messageContent);
+      
+      // Auto-scroll after sending message
+      setTimeout(scrollToBottom, 150);
     } catch (error) {
       console.error('Error sending message:', error);
+      // Restore message content on error
+      setNewMessage(messageContent);
       alert('Failed to send message');
     } finally {
       setSending(false);
@@ -88,9 +160,20 @@ export default function MessagesPage() {
   };
 
   const selectMatch = (match: any) => {
+    // Leave current match room if any
+    if (selectedMatch) {
+      leaveMatch(selectedMatch.id);
+    }
+    
     setSelectedMatch(match);
     router.push(`/messages?matchId=${match.id}`);
     loadMessages(match.id);
+    
+    // Join new match room for real-time messaging
+    joinMatch(match.id);
+    
+    // Auto-scroll when selecting a new match
+    setTimeout(scrollToBottom, 200);
   };
 
   if (loading) {
@@ -198,6 +281,25 @@ export default function MessagesPage() {
                       );
                     })
                   )}
+                  
+                  {/* Typing Indicator */}
+                  {otherUserTyping && (
+                    <div className="flex justify-start">
+                      <div className="max-w-xs px-4 py-2 rounded-lg bg-gray-200 text-gray-900">
+                        <div className="flex items-center space-x-1">
+                          <span className="text-sm text-gray-600">{typingUser} is typing</span>
+                          <div className="flex space-x-1">
+                            <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+                            <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                            <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Invisible div to scroll to */}
+                  <div ref={messagesEndRef} />
                 </div>
 
                 {/* Message Input */}
@@ -206,7 +308,42 @@ export default function MessagesPage() {
                     <input
                       type="text"
                       value={newMessage}
-                      onChange={(e) => setNewMessage(e.target.value)}
+                      onChange={(e) => {
+                        setNewMessage(e.target.value);
+                        
+                        // Handle typing indicators
+                        if (selectedMatch && e.target.value.trim()) {
+                          if (!isTyping) {
+                            setIsTyping(true);
+                            startTyping(selectedMatch.id);
+                          }
+                          
+                          // Clear existing timeout
+                          if (typingTimeout) {
+                            clearTimeout(typingTimeout);
+                          }
+                          
+                          // Set new timeout to stop typing after 2 seconds
+                          const timeout = setTimeout(() => {
+                            setIsTyping(false);
+                            if (selectedMatch) {
+                              stopTyping(selectedMatch.id);
+                            }
+                          }, 2000);
+                          setTypingTimeout(timeout);
+                        } else if (isTyping) {
+                          setIsTyping(false);
+                          if (selectedMatch) {
+                            stopTyping(selectedMatch.id);
+                          }
+                        }
+                      }}
+                      onBlur={() => {
+                        if (isTyping && selectedMatch) {
+                          setIsTyping(false);
+                          stopTyping(selectedMatch.id);
+                        }
+                      }}
                       placeholder="Type a message..."
                       className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-900 placeholder:text-gray-400"
                       disabled={sending}

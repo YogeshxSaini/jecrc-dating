@@ -1,0 +1,22 @@
+# Cloudflare Pages build configuration
+[build]
+  # Build command - Next.js static export
+  command = "npm run build"
+  
+  # Output directory
+  publish = "out"
+  
+  # Node.js version
+  node_version = "18"
+
+# Build environment variables (these will be set in Cloudflare dashboard)
+[build.environment]
+  NODE_VERSION = "18"
+  NPM_VERSION = "8"
+
+# Redirects for SPA routing
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+  conditions = {Role = [""]}

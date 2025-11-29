@@ -97,7 +97,7 @@ export default function Home() {
             <FeatureCard
               icon="🎓"
               title="Campus Exclusive"
-              description="Only @jecrc.ac.in email addresses allowed. Connect with verified students only."
+              description="Only @jecrcu.edu.in email addresses allowed. Connect with verified students only."
             />
             <FeatureCard
               icon="🔐"
