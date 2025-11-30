@@ -628,6 +628,14 @@ router.get(
       where: {
         OR: [{ userAId: id }, { userBId: id }],
       },
+      include: {
+        userA: {
+          select: { id: true, displayName: true, email: true },
+        },
+        userB: {
+          select: { id: true, displayName: true, email: true },
+        },
+      },
       orderBy: { createdAt: 'desc' },
       take: 10,
     });

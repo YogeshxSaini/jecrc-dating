@@ -430,8 +430,8 @@ export default function UsersManagement() {
                       return (
                         <div key={match.id} className="bg-gray-900 rounded-lg p-3 flex items-center justify-between">
                           <div>
-                            <div className="text-white font-medium">{otherUser.displayName || 'User'}</div>
-                            <div className="text-gray-400 text-sm">{otherUser.email}</div>
+                            <div className="text-white font-medium">{otherUser?.displayName || 'User'}</div>
+                            <div className="text-gray-400 text-sm">{otherUser?.email || 'No email'}</div>
                           </div>
                           <div className="text-right">
                             <div className="text-gray-500 text-sm">{new Date(match.createdAt).toLocaleDateString()}</div>
@@ -453,8 +453,8 @@ export default function UsersManagement() {
                     {activityData.activity.likesGiven.map((like: any) => (
                       <div key={like.id} className="bg-gray-900 rounded-lg p-3 flex items-center justify-between">
                         <div>
-                          <div className="text-white font-medium">{like.toUser.displayName || 'User'}</div>
-                          <div className="text-gray-400 text-sm">{like.toUser.email}</div>
+                          <div className="text-white font-medium">{like.toUser?.displayName || 'User'}</div>
+                          <div className="text-gray-400 text-sm">{like.toUser?.email || 'No email'}</div>
                         </div>
                         <div className="text-right">
                           <div className="text-gray-500 text-sm">{new Date(like.createdAt).toLocaleDateString()}</div>
@@ -475,8 +475,8 @@ export default function UsersManagement() {
                     {activityData.activity.likesReceived.map((like: any) => (
                       <div key={like.id} className="bg-gray-900 rounded-lg p-3 flex items-center justify-between">
                         <div>
-                          <div className="text-white font-medium">{like.fromUser.displayName || 'User'}</div>
-                          <div className="text-gray-400 text-sm">{like.fromUser.email}</div>
+                          <div className="text-white font-medium">{like.fromUser?.displayName || 'User'}</div>
+                          <div className="text-gray-400 text-sm">{like.fromUser?.email || 'No email'}</div>
                         </div>
                         <div className="text-right">
                           <div className="text-gray-500 text-sm">{new Date(like.createdAt).toLocaleDateString()}</div>
