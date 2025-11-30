@@ -264,6 +264,37 @@ class ApiClient {
     });
     return response.data;
   }
+
+  async getAnalytics(days = 30) {
+    const response = await this.client.get('/api/admin/analytics', {
+      params: { days },
+    });
+    return response.data;
+  }
+
+  async getUserActivity(userId: string) {
+    const response = await this.client.get(`/api/admin/users/${userId}/activity`);
+    return response.data;
+  }
+
+  async bulkUserAction(action: 'ban' | 'unban' | 'delete', userIds: string[], reason?: string) {
+    const response = await this.client.post('/api/admin/users/bulk-action', {
+      action,
+      userIds,
+      reason,
+    });
+    return response.data;
+  }
+
+  async broadcastNotification(title: string, message: string, type: string, userIds?: string[]) {
+    const response = await this.client.post('/api/admin/broadcast', {
+      title,
+      message,
+      type,
+      userIds,
+    });
+    return response.data;
+  }
 }
 
 export const apiClient = new ApiClient();
