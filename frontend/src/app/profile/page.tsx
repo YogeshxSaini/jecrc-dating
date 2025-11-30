@@ -137,8 +137,16 @@ export default function ProfilePage() {
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="bg-white rounded-2xl shadow-xl p-8 mb-8">
           <div className="flex items-center space-x-4 mb-6">
-            <div className="w-24 h-24 bg-gradient-to-br from-purple-400 to-pink-400 rounded-full flex items-center justify-center text-4xl">
-              {user?.displayName?.[0] || '👤'}
+            <div className="w-24 h-24 bg-gradient-to-br from-purple-400 to-pink-400 rounded-full flex items-center justify-center text-4xl overflow-hidden">
+              {photos.find(p => p.isProfilePic) ? (
+                <img 
+                  src={photos.find(p => p.isProfilePic)?.url} 
+                  alt="Profile" 
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <span>{user?.displayName?.[0] || '👤'}</span>
+              )}
             </div>
             <div>
               <h1 className="text-3xl font-bold text-gray-900">{user?.displayName}</h1>

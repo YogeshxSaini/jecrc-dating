@@ -152,8 +152,16 @@ export default function DiscoverPage() {
           </div>
         ) : (
           <div className="bg-white rounded-3xl shadow-2xl overflow-hidden">
-            <div className="h-96 bg-gradient-to-br from-purple-400 to-pink-400 flex items-center justify-center text-white text-8xl">
-              {currentProfile?.displayName?.[0] || '👤'}
+            <div className="h-96 bg-gradient-to-br from-purple-400 to-pink-400 flex items-center justify-center text-white text-8xl overflow-hidden">
+              {currentProfile?.profile?.photos?.[0]?.url ? (
+                <img 
+                  src={currentProfile.profile.photos[0].url} 
+                  alt={currentProfile.displayName}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <span>{currentProfile?.displayName?.[0] || '👤'}</span>
+              )}
             </div>
             
             <div className="p-8">

@@ -68,8 +68,16 @@ export default function LikesPage() {
       <div key={like.id} className="bg-white rounded-lg shadow-sm overflow-hidden hover:shadow-md transition">
         <div className="p-6">
           <div className="flex items-center mb-4">
-            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-purple-400 to-pink-400 flex items-center justify-center text-white text-2xl font-bold">
-              {firstLetter}
+            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-purple-400 to-pink-400 flex items-center justify-center text-white text-2xl font-bold overflow-hidden">
+              {like.liker?.profile?.photos?.[0]?.url ? (
+                <img 
+                  src={like.liker.profile.photos[0].url} 
+                  alt={displayName}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                firstLetter
+              )}
             </div>
             <div className="ml-4 flex-1">
               <div className="flex items-center gap-2">
