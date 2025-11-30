@@ -20,6 +20,7 @@ import matchesRoutes from './routes/matches';
 import chatRoutes from './routes/chat';
 import adminRoutes from './routes/admin';
 import notificationRoutes from './routes/notifications';
+import photosRoutes from './routes/photos';
 
 // Load environment variables
 dotenv.config();
@@ -97,6 +98,7 @@ app.get('/', (req: Request, res: Response) => {
       chat: '/api/chat',
       admin: '/api/admin',
       notifications: '/api/notifications',
+      photos: '/api/photos',
       health: '/health',
     },
   });
@@ -142,6 +144,7 @@ app.use('/api/matches', matchesRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/photos', photosRoutes);
 
 // 404 handler
 app.use((req: Request, res: Response) => {

@@ -4,11 +4,13 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { api } from '@/lib/api';
+import PhotoUpload from '@/components/PhotoUpload';
 
 export default function ProfilePage() {
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
+  const [photos, setPhotos] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState({
@@ -49,10 +51,20 @@ export default function ProfilePage() {
         year: data.profile?.year?.toString() || '',
         interests: data.profile?.interests || [],
       });
+      loadPhotos();
     } catch (error) {
       console.error('Error loading profile:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadPhotos = async () => {
+    try {
+      const photosData = await api.getPhotos();
+      setPhotos(photosData);
+    } catch (error) {
+      console.error('Error loading photos:', error);
     }
   };
 
@@ -278,12 +290,14 @@ export default function ProfilePage() {
                 >
                   Edit Profile
                 </button>
-                <button className="flex-1 bg-gray-100 text-gray-700 py-3 rounded-lg font-semibold hover:bg-gray-200 transition">
-                  Upload Photos
-                </button>
               </div>
             </>
           )}
+        </div>
+
+        {/* Photos Section */}
+        <div className="bg-white rounded-2xl shadow-xl p-8">
+          <PhotoUpload photos={photos} onPhotosChange={loadPhotos} />
         </div>
 
         {!isEditing && (

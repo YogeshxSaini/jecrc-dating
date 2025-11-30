@@ -367,6 +367,30 @@ class ApiClient {
     const response = await this.client.get('/api/admin/matches', { params });
     return response.data;
   }
+
+  // Photos
+  async uploadPhoto(imageData: string, isProfilePic: boolean = false) {
+    const response = await this.client.post('/api/photos/upload', {
+      imageData,
+      isProfilePic,
+    });
+    return response.data;
+  }
+
+  async getPhotos() {
+    const response = await this.client.get('/api/photos');
+    return response.data.photos;
+  }
+
+  async updatePhoto(photoId: string, data: { isProfilePic?: boolean; order?: number }) {
+    const response = await this.client.put(`/api/photos/${photoId}`, data);
+    return response.data;
+  }
+
+  async deletePhoto(photoId: string) {
+    const response = await this.client.delete(`/api/photos/${photoId}`);
+    return response.data;
+  }
 }
 
 export const apiClient = new ApiClient();
