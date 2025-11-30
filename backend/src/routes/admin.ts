@@ -265,6 +265,16 @@ router.post(
       },
     });
 
+    // Log action
+    await createAuditLog(
+      req.user!.id,
+      'BAN_USER',
+      'USER',
+      id,
+      { reason, email: user.email },
+      req
+    );
+
     res.json({
       success: true,
       message: 'User banned',
@@ -281,6 +291,8 @@ router.post(
   asyncHandler(async (req: AuthRequest, res: Response) => {
     const { id } = req.params;
 
+    const user = await prisma.user.findUnique({ where: { id } });
+    
     await prisma.user.update({
       where: { id },
       data: {
@@ -299,6 +311,16 @@ router.post(
         data: {},
       },
     });
+
+    // Log action
+    await createAuditLog(
+      req.user!.id,
+      'UNBAN_USER',
+      'USER',
+      id,
+      { email: user?.email },
+      req
+    );
 
     res.json({
       success: true,
@@ -474,6 +496,11 @@ router.get(
     const limit = parseInt(req.query.limit as string) || 20;
     const offset = parseInt(req.query.offset as string) || 0;
     const search = req.query.search as string;
+    const department = req.query.department as string;
+    const year = req.query.year ? parseInt(req.query.year as string) : undefined;
+    const verified = req.query.verified as string;
+    const banned = req.query.banned as string;
+    const activityLevel = req.query.activityLevel as string;
 
     const where: any = {};
     if (search) {
@@ -481,6 +508,33 @@ router.get(
         { email: { contains: search, mode: 'insensitive' } },
         { displayName: { contains: search, mode: 'insensitive' } },
       ];
+    }
+
+    // Advanced filters
+    if (department) {
+      where.profile = { department };
+    }
+    if (year !== undefined) {
+      where.profile = { ...where.profile, year };
+    }
+    if (verified === 'true') {
+      where.verifiedSelfie = true;
+    } else if (verified === 'false') {
+      where.verifiedSelfie = false;
+    }
+    if (banned === 'true') {
+      where.isBanned = true;
+    } else if (banned === 'false') {
+      where.isBanned = false;
+    }
+    if (activityLevel === 'active') {
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      where.lastActiveAt = { gte: sevenDaysAgo };
+    } else if (activityLevel === 'inactive') {
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      where.lastActiveAt = { lt: thirtyDaysAgo };
     }
 
     const users = await prisma.user.findMany({
@@ -496,6 +550,12 @@ router.get(
         verifiedSelfie: true,
         createdAt: true,
         lastActiveAt: true,
+        profile: {
+          select: {
+            department: true,
+            year: true,
+          },
+        },
       },
       orderBy: {
         createdAt: 'desc',
@@ -812,6 +872,147 @@ router.get(
       match,
       messages,
     });
+  })
+);
+
+/**
+ * GET /api/admin/audit-logs
+ * Get audit logs with filtering
+ */
+router.get(
+  '/audit-logs',
+  asyncHandler(async (req: AuthRequest, res: Response) => {
+    const limit = parseInt(req.query.limit as string) || 50;
+    const offset = parseInt(req.query.offset as string) || 0;
+    const action = req.query.action as string;
+    const adminId = req.query.adminId as string;
+
+    const where: any = {};
+    if (action) where.action = action;
+    if (adminId) where.adminId = adminId;
+
+    const logs = await prisma.auditLog.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      skip: offset,
+      take: limit,
+    });
+
+    const total = await prisma.auditLog.count({ where });
+
+    res.json({
+      success: true,
+      logs,
+      total,
+    });
+  })
+);
+
+/**
+ * POST /api/admin/audit-logs
+ * Create audit log (internal use)
+ */
+async function createAuditLog(
+  adminId: string,
+  action: string,
+  targetType: string,
+  targetId: string,
+  details?: any,
+  req?: any
+) {
+  await prisma.auditLog.create({
+    data: {
+      adminId,
+      action,
+      targetType,
+      targetId,
+      details,
+      ipAddress: req?.ip || req?.headers['x-forwarded-for'] || null,
+      userAgent: req?.headers['user-agent'] || null,
+    },
+  });
+}
+
+/**
+ * GET /api/admin/settings
+ * Get system settings
+ */
+router.get(
+  '/settings',
+  asyncHandler(async (req: AuthRequest, res: Response) => {
+    // For now, return hardcoded settings. In production, store in database
+    const settings = {
+      matching: {
+        maxDailyLikes: 50,
+        maxDiscoverProfiles: 100,
+        requireEmailVerification: true,
+        requirePhotoVerification: false,
+        minPhotos: 1,
+        maxPhotos: 6,
+      },
+      moderation: {
+        autoFlagKeywords: ['spam', 'scam', 'fake', 'inappropriate'],
+        requirePhotoApproval: false,
+        minReportsForAutoban: 5,
+      },
+      features: {
+        chatEnabled: true,
+        videoCallEnabled: false,
+        voiceCallEnabled: false,
+        gifEnabled: true,
+        stickerEnabled: true,
+      },
+    };
+
+    res.json({ success: true, settings });
+  })
+);
+
+/**
+ * PUT /api/admin/settings
+ * Update system settings
+ */
+router.put(
+  '/settings',
+  asyncHandler(async (req: AuthRequest, res: Response) => {
+    const schema = z.object({
+      matching: z.object({
+        maxDailyLikes: z.number().min(1).max(1000).optional(),
+        maxDiscoverProfiles: z.number().min(10).max(500).optional(),
+        requireEmailVerification: z.boolean().optional(),
+        requirePhotoVerification: z.boolean().optional(),
+        minPhotos: z.number().min(1).max(10).optional(),
+        maxPhotos: z.number().min(1).max(10).optional(),
+      }).optional(),
+      moderation: z.object({
+        autoFlagKeywords: z.array(z.string()).optional(),
+        requirePhotoApproval: z.boolean().optional(),
+        minReportsForAutoban: z.number().min(1).max(50).optional(),
+      }).optional(),
+      features: z.object({
+        chatEnabled: z.boolean().optional(),
+        videoCallEnabled: z.boolean().optional(),
+        voiceCallEnabled: z.boolean().optional(),
+        gifEnabled: z.boolean().optional(),
+        stickerEnabled: z.boolean().optional(),
+      }).optional(),
+    });
+
+    const settings = schema.parse(req.body);
+
+    // Log the change
+    await createAuditLog(
+      req.user!.id,
+      'UPDATE_SETTINGS',
+      'SETTINGS',
+      'system',
+      settings,
+      req
+    );
+
+    // In production, save to database
+    // For now, just return success
+    res.json({ success: true, settings });
   })
 );
 

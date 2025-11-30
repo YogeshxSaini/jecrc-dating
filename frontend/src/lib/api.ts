@@ -309,6 +309,23 @@ class ApiClient {
     });
     return response.data;
   }
+
+  async getAuditLogs(limit = 50, offset = 0, action?: string, adminId?: string) {
+    const response = await this.client.get('/api/admin/audit-logs', {
+      params: { limit, offset, action, adminId },
+    });
+    return response.data;
+  }
+
+  async getSystemSettings() {
+    const response = await this.client.get('/api/admin/settings');
+    return response.data;
+  }
+
+  async updateSystemSettings(settings: any) {
+    const response = await this.client.put('/api/admin/settings', settings);
+    return response.data;
+  }
 }
 
 export const apiClient = new ApiClient();

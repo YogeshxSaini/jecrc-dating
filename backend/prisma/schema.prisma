@@ -278,3 +278,21 @@ enum NotificationType {
   PROFILE_VERIFIED
   ACCOUNT_WARNING
 }
+
+// AuditLog model - track all admin actions
+model AuditLog {
+  id          String   @id @default(uuid())
+  adminId     String
+  action      String   // e.g., "BAN_USER", "APPROVE_PHOTO", "DELETE_USER"
+  targetType  String   // e.g., "USER", "PHOTO", "REPORT"
+  targetId    String   // ID of the affected entity
+  details     Json?    // Additional context (reason, changes, etc.)
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+
+  @@index([adminId, createdAt])
+  @@index([targetType, targetId])
+  @@index([action])
+  @@map("audit_logs")
+}
