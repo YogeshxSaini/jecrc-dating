@@ -88,9 +88,6 @@ router.get(
     // Apply pagination after randomization
     const paginatedUsers = shuffled.slice(offset, offset + limit);
 
-    // Apply pagination after randomization
-    const paginatedUsers = shuffled.slice(offset, offset + limit);
-
     res.json({
       success: true,
       users: paginatedUsers,
