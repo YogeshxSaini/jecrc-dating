@@ -32,8 +32,8 @@ export default function UsersManagement() {
     }
   };
 
-  const handleBan = async (userId: string, displayName: string) => {
-    const reason = prompt(`Enter reason for banning ${displayName}:`);
+  const handleBan = async (userId: string, displayName: string | null) => {
+    const reason = prompt(`Enter reason for banning ${displayName || 'this user'}:`);
     if (!reason) return;
 
     try {
@@ -46,8 +46,8 @@ export default function UsersManagement() {
     }
   };
 
-  const handleUnban = async (userId: string, displayName: string) => {
-    if (!confirm(`Unban ${displayName}?`)) return;
+  const handleUnban = async (userId: string, displayName: string | null) => {
+    if (!confirm(`Unban ${displayName || 'this user'}?`)) return;
 
     try {
       await api.unbanUser(userId);
