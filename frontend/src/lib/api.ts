@@ -173,6 +173,11 @@ class ApiClient {
     return response.data;
   }
 
+  async passUser(toUserId: string) {
+    const response = await this.client.post(`/api/discover/pass/${toUserId}`);
+    return response.data;
+  }
+
   async unlikeUser(userId: string) {
     const response = await this.client.delete(`/api/likes/${userId}`);
     return response.data;

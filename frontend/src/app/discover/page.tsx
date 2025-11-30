@@ -11,6 +11,7 @@ export default function DiscoverPage() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [isActioning, setIsActioning] = useState(false);
 
   useEffect(() => {
     const token = localStorage.getItem('accessToken');
@@ -34,20 +35,52 @@ export default function DiscoverPage() {
     }
   };
 
-  const handleLike = async () => {
-    if (!profiles[currentIndex]) return;
-    
+  const loadMoreProfiles = async () => {
     try {
-      await api.likeUser(profiles[currentIndex].id);
-      setCurrentIndex(currentIndex + 1);
+      const data = await api.getDiscoverFeed(20, profiles.length);
+      setProfiles([...profiles, ...(data.users || [])]);
     } catch (err: any) {
-      console.error('Like error:', err);
-      setError(err.response?.data?.error || 'Failed to like user');
+      console.error('Failed to load more profiles:', err);
     }
   };
 
-  const handlePass = () => {
-    setCurrentIndex(currentIndex + 1);
+  const handleLike = async () => {
+    if (!profiles[currentIndex] || isActioning) return;
+    
+    setIsActioning(true);
+    try {
+      await api.likeUser(profiles[currentIndex].id);
+      moveToNext();
+    } catch (err: any) {
+      console.error('Like error:', err);
+      setError(err.response?.data?.error || 'Failed to like user');
+      setIsActioning(false);
+    }
+  };
+
+  const handlePass = async () => {
+    if (!profiles[currentIndex] || isActioning) return;
+    
+    setIsActioning(true);
+    try {
+      await api.passUser(profiles[currentIndex].id);
+      moveToNext();
+    } catch (err: any) {
+      console.error('Pass error:', err);
+      setError(err.response?.data?.error || 'Failed to pass user');
+      setIsActioning(false);
+    }
+  };
+
+  const moveToNext = () => {
+    const nextIndex = currentIndex + 1;
+    setCurrentIndex(nextIndex);
+    setIsActioning(false);
+    
+    // Prefetch more profiles when we're 5 profiles away from the end
+    if (nextIndex >= profiles.length - 5) {
+      loadMoreProfiles();
+    }
   };
 
   if (loading) {
@@ -146,13 +179,15 @@ export default function DiscoverPage() {
               <div className="flex gap-4">
                 <button
                   onClick={handlePass}
-                  className="flex-1 bg-gray-100 text-gray-700 py-4 rounded-2xl font-semibold hover:bg-gray-200 transition text-xl"
+                  disabled={isActioning}
+                  className="flex-1 bg-gray-100 text-gray-700 py-4 rounded-2xl font-semibold hover:bg-gray-200 transition text-xl disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   ✕ Pass
                 </button>
                 <button
                   onClick={handleLike}
-                  className="flex-1 bg-gradient-to-r from-pink-500 to-purple-600 text-white py-4 rounded-2xl font-semibold hover:shadow-xl transition text-xl"
+                  disabled={isActioning}
+                  className="flex-1 bg-gradient-to-r from-pink-500 to-purple-600 text-white py-4 rounded-2xl font-semibold hover:shadow-xl transition text-xl disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   ❤️ Like
                 </button>
