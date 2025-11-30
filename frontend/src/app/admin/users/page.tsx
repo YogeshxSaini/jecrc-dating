@@ -122,6 +122,36 @@ export default function UsersManagement() {
     }
   };
 
+  const handleDeleteLike = async (likeId: string) => {
+    if (!confirm('Are you sure you want to delete this like?')) return;
+
+    try {
+      await api.deleteLike(likeId);
+      alert('Like deleted successfully');
+      if (activityData) {
+        viewActivity(activityData.user.id);
+      }
+    } catch (error) {
+      console.error('Failed to delete like:', error);
+      alert('Failed to delete like');
+    }
+  };
+
+  const handleDeleteMatch = async (matchId: string) => {
+    if (!confirm('Are you sure you want to unmatch these users? This will delete all their messages.')) return;
+
+    try {
+      await api.deleteMatch(matchId);
+      alert('Match deleted successfully');
+      if (activityData) {
+        viewActivity(activityData.user.id);
+      }
+    } catch (error) {
+      console.error('Failed to delete match:', error);
+      alert('Failed to delete match');
+    }
+  };
+
   const exportToCSV = () => {
     const csvData = users.map(u => ({
       Email: u.email,
@@ -429,13 +459,22 @@ export default function UsersManagement() {
                       const otherUser = match.userAId === activityData.user.id ? match.userB : match.userA;
                       return (
                         <div key={match.id} className="bg-gray-900 rounded-lg p-3 flex items-center justify-between">
-                          <div>
+                          <div className="flex-1">
                             <div className="text-white font-medium">{otherUser?.displayName || 'User'}</div>
                             <div className="text-gray-400 text-sm">{otherUser?.email || 'No email'}</div>
                           </div>
-                          <div className="text-right">
-                            <div className="text-gray-500 text-sm">{new Date(match.createdAt).toLocaleDateString()}</div>
-                            <div className="text-gray-600 text-xs">{new Date(match.createdAt).toLocaleTimeString()}</div>
+                          <div className="flex items-center gap-3">
+                            <div className="text-right">
+                              <div className="text-gray-500 text-sm">{new Date(match.createdAt).toLocaleDateString()}</div>
+                              <div className="text-gray-600 text-xs">{new Date(match.createdAt).toLocaleTimeString()}</div>
+                            </div>
+                            <button
+                              onClick={() => handleDeleteMatch(match.id)}
+                              className="px-3 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700 transition"
+                              title="Unmatch users"
+                            >
+                              🗑️ Unmatch
+                            </button>
                           </div>
                         </div>
                       );
@@ -452,13 +491,22 @@ export default function UsersManagement() {
                   <div className="space-y-2 max-h-64 overflow-y-auto">
                     {activityData.activity.likesGiven.map((like: any) => (
                       <div key={like.id} className="bg-gray-900 rounded-lg p-3 flex items-center justify-between">
-                        <div>
+                        <div className="flex-1">
                           <div className="text-white font-medium">{like.toUser?.displayName || 'User'}</div>
                           <div className="text-gray-400 text-sm">{like.toUser?.email || 'No email'}</div>
                         </div>
-                        <div className="text-right">
-                          <div className="text-gray-500 text-sm">{new Date(like.createdAt).toLocaleDateString()}</div>
-                          <div className="text-gray-600 text-xs">{new Date(like.createdAt).toLocaleTimeString()}</div>
+                        <div className="flex items-center gap-3">
+                          <div className="text-right">
+                            <div className="text-gray-500 text-sm">{new Date(like.createdAt).toLocaleDateString()}</div>
+                            <div className="text-gray-600 text-xs">{new Date(like.createdAt).toLocaleTimeString()}</div>
+                          </div>
+                          <button
+                            onClick={() => handleDeleteLike(like.id)}
+                            className="px-3 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700 transition"
+                            title="Delete like"
+                          >
+                            🗑️
+                          </button>
                         </div>
                       </div>
                     ))}
@@ -474,13 +522,22 @@ export default function UsersManagement() {
                   <div className="space-y-2 max-h-64 overflow-y-auto">
                     {activityData.activity.likesReceived.map((like: any) => (
                       <div key={like.id} className="bg-gray-900 rounded-lg p-3 flex items-center justify-between">
-                        <div>
+                        <div className="flex-1">
                           <div className="text-white font-medium">{like.fromUser?.displayName || 'User'}</div>
                           <div className="text-gray-400 text-sm">{like.fromUser?.email || 'No email'}</div>
                         </div>
-                        <div className="text-right">
-                          <div className="text-gray-500 text-sm">{new Date(like.createdAt).toLocaleDateString()}</div>
-                          <div className="text-gray-600 text-xs">{new Date(like.createdAt).toLocaleTimeString()}</div>
+                        <div className="flex items-center gap-3">
+                          <div className="text-right">
+                            <div className="text-gray-500 text-sm">{new Date(like.createdAt).toLocaleDateString()}</div>
+                            <div className="text-gray-600 text-xs">{new Date(like.createdAt).toLocaleTimeString()}</div>
+                          </div>
+                          <button
+                            onClick={() => handleDeleteLike(like.id)}
+                            className="px-3 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700 transition"
+                            title="Delete like"
+                          >
+                            🗑️
+                          </button>
                         </div>
                       </div>
                     ))}

@@ -1024,4 +1024,193 @@ router.put(
   })
 );
 
+/**
+ * DELETE /api/admin/likes/:id
+ * Delete a like (admin action)
+ */
+router.delete(
+  '/likes/:id',
+  asyncHandler(async (req: AuthRequest, res: Response) => {
+    const { id } = req.params;
+
+    const like = await prisma.like.findUnique({
+      where: { id },
+      include: {
+        fromUser: { select: { email: true } },
+        toUser: { select: { email: true } },
+      },
+    });
+
+    if (!like) {
+      throw new AppError('Like not found', 404);
+    }
+
+    await prisma.like.delete({
+      where: { id },
+    });
+
+    // Log action
+    await createAuditLog(
+      req.user!.id,
+      'DELETE_LIKE',
+      'LIKE',
+      id,
+      {
+        fromUser: like.fromUser.email,
+        toUser: like.toUser.email,
+      },
+      req
+    );
+
+    res.json({
+      success: true,
+      message: 'Like deleted successfully',
+    });
+  })
+);
+
+/**
+ * GET /api/admin/likes
+ * Get all likes with pagination
+ */
+router.get(
+  '/likes',
+  asyncHandler(async (req: AuthRequest, res: Response) => {
+    const limit = parseInt(req.query.limit as string) || 50;
+    const offset = parseInt(req.query.offset as string) || 0;
+    const search = req.query.search as string;
+
+    const where: any = {};
+    if (search) {
+      where.OR = [
+        { fromUser: { email: { contains: search, mode: 'insensitive' } } },
+        { toUser: { email: { contains: search, mode: 'insensitive' } } },
+      ];
+    }
+
+    const likes = await prisma.like.findMany({
+      where,
+      include: {
+        fromUser: {
+          select: { id: true, email: true, displayName: true },
+        },
+        toUser: {
+          select: { id: true, email: true, displayName: true },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+      skip: offset,
+      take: limit,
+    });
+
+    const total = await prisma.like.count({ where });
+
+    res.json({
+      success: true,
+      likes,
+      total,
+      hasMore: offset + limit < total,
+    });
+  })
+);
+
+/**
+ * DELETE /api/admin/matches/:id
+ * Delete a match (unmatch users, admin action)
+ */
+router.delete(
+  '/matches/:id',
+  asyncHandler(async (req: AuthRequest, res: Response) => {
+    const { id } = req.params;
+
+    const match = await prisma.match.findUnique({
+      where: { id },
+      include: {
+        userA: { select: { email: true } },
+        userB: { select: { email: true } },
+      },
+    });
+
+    if (!match) {
+      throw new AppError('Match not found', 404);
+    }
+
+    // Delete all messages in this match
+    await prisma.message.deleteMany({
+      where: { matchId: id },
+    });
+
+    // Delete the match
+    await prisma.match.delete({
+      where: { id },
+    });
+
+    // Log action
+    await createAuditLog(
+      req.user!.id,
+      'DELETE_MATCH',
+      'MATCH',
+      id,
+      {
+        userA: match.userA.email,
+        userB: match.userB.email,
+      },
+      req
+    );
+
+    res.json({
+      success: true,
+      message: 'Match deleted successfully',
+    });
+  })
+);
+
+/**
+ * GET /api/admin/matches
+ * Get all matches with pagination
+ */
+router.get(
+  '/matches',
+  asyncHandler(async (req: AuthRequest, res: Response) => {
+    const limit = parseInt(req.query.limit as string) || 50;
+    const offset = parseInt(req.query.offset as string) || 0;
+    const search = req.query.search as string;
+
+    const where: any = {};
+    if (search) {
+      where.OR = [
+        { userA: { email: { contains: search, mode: 'insensitive' } } },
+        { userB: { email: { contains: search, mode: 'insensitive' } } },
+      ];
+    }
+
+    const matches = await prisma.match.findMany({
+      where,
+      include: {
+        userA: {
+          select: { id: true, email: true, displayName: true },
+        },
+        userB: {
+          select: { id: true, email: true, displayName: true },
+        },
+        _count: {
+          select: { messages: true },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+      skip: offset,
+      take: limit,
+    });
+
+    const total = await prisma.match.count({ where });
+
+    res.json({
+      success: true,
+      matches,
+      total,
+      hasMore: offset + limit < total,
+    });
+  })
+);
+
 export default router;

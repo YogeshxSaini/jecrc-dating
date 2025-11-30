@@ -342,6 +342,31 @@ class ApiClient {
     const response = await this.client.put('/api/notifications/read-all');
     return response.data;
   }
+
+  // Admin - Manage likes and matches
+  async deleteLike(likeId: string) {
+    const response = await this.client.delete(`/api/admin/likes/${likeId}`);
+    return response.data;
+  }
+
+  async deleteMatch(matchId: string) {
+    const response = await this.client.delete(`/api/admin/matches/${matchId}`);
+    return response.data;
+  }
+
+  async getAllLikes(limit: number, offset: number, search?: string) {
+    const params: any = { limit, offset };
+    if (search) params.search = search;
+    const response = await this.client.get('/api/admin/likes', { params });
+    return response.data;
+  }
+
+  async getAllMatches(limit: number, offset: number, search?: string) {
+    const params: any = { limit, offset };
+    if (search) params.search = search;
+    const response = await this.client.get('/api/admin/matches', { params });
+    return response.data;
+  }
 }
 
 export const apiClient = new ApiClient();
