@@ -277,6 +277,9 @@ enum NotificationType {
   LIKE_RECEIVED
   PROFILE_VERIFIED
   ACCOUNT_WARNING
+  ANNOUNCEMENT
+  MAINTENANCE
+  UPDATE
 }
 
 // AuditLog model - track all admin actions
