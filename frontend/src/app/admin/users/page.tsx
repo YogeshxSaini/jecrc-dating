@@ -12,6 +12,7 @@ export default function UsersManagement() {
   const [selectedUsers, setSelectedUsers] = useState<Set<string>>(new Set());
   const [showActivityModal, setShowActivityModal] = useState(false);
   const [activityData, setActivityData] = useState<any>(null);
+  const [expandedSection, setExpandedSection] = useState<string | null>(null);
   const limit = 20;
 
   useEffect(() => {
@@ -114,6 +115,7 @@ export default function UsersManagement() {
       const data = await api.getUserActivity(userId);
       setActivityData(data);
       setShowActivityModal(true);
+      setExpandedSection(null);
     } catch (error) {
       console.error('Failed to load activity:', error);
       alert('Failed to load user activity');
@@ -362,7 +364,7 @@ export default function UsersManagement() {
 
       {/* Activity Modal */}
       {showActivityModal && activityData && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4" onClick={() => setShowActivityModal(false)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4" onClick={() => { setShowActivityModal(false); setExpandedSection(null); }}>
           <div className="bg-gray-800 rounded-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto border border-gray-700" onClick={(e) => e.stopPropagation()}>
             <div className="sticky top-0 bg-gray-800 border-b border-gray-700 p-6 flex items-center justify-between">
               <div>
@@ -370,7 +372,7 @@ export default function UsersManagement() {
                 <p className="text-gray-400 mt-1">{activityData.user.displayName || activityData.user.email}</p>
               </div>
               <button
-                onClick={() => setShowActivityModal(false)}
+                onClick={() => { setShowActivityModal(false); setExpandedSection(null); }}
                 className="w-10 h-10 bg-gray-700 hover:bg-gray-600 rounded-full flex items-center justify-center text-white transition"
               >
                 ✕
@@ -384,19 +386,107 @@ export default function UsersManagement() {
                   <div className="text-gray-400 text-sm mb-1">Messages Sent</div>
                   <div className="text-2xl font-bold text-white">{activityData.activity.messagesSent}</div>
                 </div>
-                <div className="bg-gray-900 rounded-lg p-4">
+                <button 
+                  onClick={() => setExpandedSection(expandedSection === 'matches' ? null : 'matches')}
+                  className="bg-gray-900 rounded-lg p-4 hover:bg-gray-800 transition text-left cursor-pointer"
+                >
                   <div className="text-gray-400 text-sm mb-1">Matches</div>
-                  <div className="text-2xl font-bold text-white">{activityData.activity.matches.length}</div>
-                </div>
-                <div className="bg-gray-900 rounded-lg p-4">
+                  <div className="text-2xl font-bold text-white flex items-center justify-between">
+                    {activityData.activity.matches.length}
+                    <span className="text-sm text-purple-400">👁️</span>
+                  </div>
+                </button>
+                <button 
+                  onClick={() => setExpandedSection(expandedSection === 'likesGiven' ? null : 'likesGiven')}
+                  className="bg-gray-900 rounded-lg p-4 hover:bg-gray-800 transition text-left cursor-pointer"
+                >
                   <div className="text-gray-400 text-sm mb-1">Likes Given</div>
-                  <div className="text-2xl font-bold text-white">{activityData.activity.likesGiven.length}</div>
-                </div>
-                <div className="bg-gray-900 rounded-lg p-4">
+                  <div className="text-2xl font-bold text-white flex items-center justify-between">
+                    {activityData.activity.likesGiven.length}
+                    <span className="text-sm text-purple-400">👁️</span>
+                  </div>
+                </button>
+                <button 
+                  onClick={() => setExpandedSection(expandedSection === 'likesReceived' ? null : 'likesReceived')}
+                  className="bg-gray-900 rounded-lg p-4 hover:bg-gray-800 transition text-left cursor-pointer"
+                >
                   <div className="text-gray-400 text-sm mb-1">Likes Received</div>
-                  <div className="text-2xl font-bold text-white">{activityData.activity.likesReceived.length}</div>
-                </div>
+                  <div className="text-2xl font-bold text-white flex items-center justify-between">
+                    {activityData.activity.likesReceived.length}
+                    <span className="text-sm text-purple-400">👁️</span>
+                  </div>
+                </button>
               </div>
+
+              {/* Expanded Sections */}
+              {expandedSection === 'matches' && activityData.activity.matches.length > 0 && (
+                <div className="bg-purple-500/10 border border-purple-500/20 rounded-lg p-4">
+                  <h3 className="text-lg font-bold text-purple-400 mb-3 flex items-center gap-2">
+                    💘 Matches ({activityData.activity.matches.length})
+                  </h3>
+                  <div className="space-y-2 max-h-64 overflow-y-auto">
+                    {activityData.activity.matches.map((match: any) => {
+                      const otherUser = match.userAId === activityData.user.id ? match.userB : match.userA;
+                      return (
+                        <div key={match.id} className="bg-gray-900 rounded-lg p-3 flex items-center justify-between">
+                          <div>
+                            <div className="text-white font-medium">{otherUser.displayName || 'User'}</div>
+                            <div className="text-gray-400 text-sm">{otherUser.email}</div>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-gray-500 text-sm">{new Date(match.createdAt).toLocaleDateString()}</div>
+                            <div className="text-gray-600 text-xs">{new Date(match.createdAt).toLocaleTimeString()}</div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {expandedSection === 'likesGiven' && activityData.activity.likesGiven.length > 0 && (
+                <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4">
+                  <h3 className="text-lg font-bold text-blue-400 mb-3 flex items-center gap-2">
+                    👍 Likes Given ({activityData.activity.likesGiven.length})
+                  </h3>
+                  <div className="space-y-2 max-h-64 overflow-y-auto">
+                    {activityData.activity.likesGiven.map((like: any) => (
+                      <div key={like.id} className="bg-gray-900 rounded-lg p-3 flex items-center justify-between">
+                        <div>
+                          <div className="text-white font-medium">{like.toUser.displayName || 'User'}</div>
+                          <div className="text-gray-400 text-sm">{like.toUser.email}</div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-gray-500 text-sm">{new Date(like.createdAt).toLocaleDateString()}</div>
+                          <div className="text-gray-600 text-xs">{new Date(like.createdAt).toLocaleTimeString()}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {expandedSection === 'likesReceived' && activityData.activity.likesReceived.length > 0 && (
+                <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-4">
+                  <h3 className="text-lg font-bold text-green-400 mb-3 flex items-center gap-2">
+                    💚 Likes Received ({activityData.activity.likesReceived.length})
+                  </h3>
+                  <div className="space-y-2 max-h-64 overflow-y-auto">
+                    {activityData.activity.likesReceived.map((like: any) => (
+                      <div key={like.id} className="bg-gray-900 rounded-lg p-3 flex items-center justify-between">
+                        <div>
+                          <div className="text-white font-medium">{like.fromUser.displayName || 'User'}</div>
+                          <div className="text-gray-400 text-sm">{like.fromUser.email}</div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-gray-500 text-sm">{new Date(like.createdAt).toLocaleDateString()}</div>
+                          <div className="text-gray-600 text-xs">{new Date(like.createdAt).toLocaleTimeString()}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Reports */}
               <div className="grid grid-cols-2 gap-4">
@@ -409,24 +499,6 @@ export default function UsersManagement() {
                   <div className="text-xl font-bold text-red-400">{activityData.activity.reportsAgainst}</div>
                 </div>
               </div>
-
-              {/* Recent Likes Given */}
-              {activityData.activity.likesGiven.length > 0 && (
-                <div>
-                  <h3 className="text-lg font-bold text-white mb-3">Recent Likes Given</h3>
-                  <div className="space-y-2">
-                    {activityData.activity.likesGiven.slice(0, 5).map((like: any) => (
-                      <div key={like.id} className="bg-gray-900 rounded-lg p-3 flex items-center justify-between">
-                        <div>
-                          <div className="text-white">{like.toUser.displayName || 'User'}</div>
-                          <div className="text-gray-400 text-sm">{like.toUser.email}</div>
-                        </div>
-                        <div className="text-gray-500 text-sm">{new Date(like.createdAt).toLocaleDateString()}</div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
 
               {/* Last Active */}
               <div className="bg-gray-900 rounded-lg p-4">
