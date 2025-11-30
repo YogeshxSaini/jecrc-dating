@@ -180,9 +180,25 @@ router.get('/received', auth_1.authenticate, (0, errorHandler_1.asyncHandler)(as
             createdAt: 'desc',
         },
     });
+    // Check if each like has a mutual match
+    const likesWithMatchStatus = await Promise.all(likes.map(async (like) => {
+        // Check if there's a mutual like (match)
+        const reverseLike = await index_1.prisma.like.findUnique({
+            where: {
+                fromUserId_toUserId: {
+                    fromUserId: req.user.id,
+                    toUserId: like.fromUserId,
+                },
+            },
+        });
+        return {
+            ...like,
+            isMatched: !!reverseLike,
+        };
+    }));
     res.json({
         success: true,
-        likes,
+        likes: likesWithMatchStatus,
     });
 }));
 /**
