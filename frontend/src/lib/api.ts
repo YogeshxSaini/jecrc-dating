@@ -239,6 +239,31 @@ class ApiClient {
     const response = await this.client.post(`/api/admin/users/${userId}/ban`, { reason });
     return response.data;
   }
+
+  async unbanUser(userId: string) {
+    const response = await this.client.post(`/api/admin/users/${userId}/unban`);
+    return response.data;
+  }
+
+  async getAdminStats() {
+    const response = await this.client.get('/api/admin/stats');
+    return response.data;
+  }
+
+  async getAdminUsers(limit = 20, offset = 0, search?: string) {
+    const response = await this.client.get('/api/admin/users', {
+      params: { limit, offset, search },
+    });
+    return response.data;
+  }
+
+  async reviewReport(reportId: string, status: string, resolution: string) {
+    const response = await this.client.post(`/api/admin/reports/${reportId}/review`, {
+      status,
+      resolution,
+    });
+    return response.data;
+  }
 }
 
 export const apiClient = new ApiClient();
