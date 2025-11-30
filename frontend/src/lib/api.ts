@@ -295,6 +295,20 @@ class ApiClient {
     });
     return response.data;
   }
+
+  async getAdminChats(limit = 20, offset = 0) {
+    const response = await this.client.get('/api/admin/chats', {
+      params: { limit, offset },
+    });
+    return response.data;
+  }
+
+  async getAdminChatMessages(matchId: string, limit = 100) {
+    const response = await this.client.get(`/api/admin/chats/${matchId}/messages`, {
+      params: { limit },
+    });
+    return response.data;
+  }
 }
 
 export const apiClient = new ApiClient();

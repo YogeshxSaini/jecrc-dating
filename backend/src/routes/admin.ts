@@ -707,4 +707,112 @@ router.post(
   })
 );
 
+/**
+ * GET /api/admin/chats
+ * Get all conversations for monitoring
+ */
+router.get(
+  '/chats',
+  asyncHandler(async (req: AuthRequest, res: Response) => {
+    const limit = parseInt(req.query.limit as string) || 20;
+    const offset = parseInt(req.query.offset as string) || 0;
+    const search = req.query.search as string;
+
+    // Get all matches with recent messages
+    const matches = await prisma.match.findMany({
+      include: {
+        userA: {
+          select: {
+            id: true,
+            email: true,
+            displayName: true,
+          },
+        },
+        userB: {
+          select: {
+            id: true,
+            email: true,
+            displayName: true,
+          },
+        },
+        messages: {
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+      skip: offset,
+      take: limit,
+    });
+
+    const total = await prisma.match.count();
+
+    res.json({
+      success: true,
+      matches,
+      total,
+      hasMore: offset + limit < total,
+    });
+  })
+);
+
+/**
+ * GET /api/admin/chats/:matchId/messages
+ * Get all messages for a specific match
+ */
+router.get(
+  '/chats/:matchId/messages',
+  asyncHandler(async (req: AuthRequest, res: Response) => {
+    const { matchId } = req.params;
+    const limit = parseInt(req.query.limit as string) || 100;
+
+    const match = await prisma.match.findUnique({
+      where: { id: matchId },
+      include: {
+        userA: {
+          select: {
+            id: true,
+            email: true,
+            displayName: true,
+          },
+        },
+        userB: {
+          select: {
+            id: true,
+            email: true,
+            displayName: true,
+          },
+        },
+      },
+    });
+
+    if (!match) {
+      throw new AppError('Match not found', 404);
+    }
+
+    const messages = await prisma.message.findMany({
+      where: { matchId },
+      include: {
+        sender: {
+          select: {
+            id: true,
+            email: true,
+            displayName: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'asc' },
+      take: limit,
+    });
+
+    res.json({
+      success: true,
+      match,
+      messages,
+    });
+  })
+);
+
 export default router;
