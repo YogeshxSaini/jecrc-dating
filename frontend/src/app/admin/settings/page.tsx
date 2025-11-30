@@ -42,10 +42,11 @@ export default function SystemSettings() {
   };
 
   const updateSetting = (category: string, key: string, value: any) => {
+    if (!settings) return;
     setSettings({
       ...settings,
       [category]: {
-        ...settings[category],
+        ...(settings[category] || {}),
         [key]: value,
       },
     });

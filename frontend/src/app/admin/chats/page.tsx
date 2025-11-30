@@ -5,12 +5,14 @@ import { api } from '@/lib/api';
 
 export default function ChatsMonitoring() {
   const [matches, setMatches] = useState<any[]>([]);
+  const [allMatches, setAllMatches] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedMatch, setSelectedMatch] = useState<any>(null);
   const [messages, setMessages] = useState<any[]>([]);
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [offset, setOffset] = useState(0);
   const [total, setTotal] = useState(0);
+  const [searchQuery, setSearchQuery] = useState('');
   const limit = 20;
 
   useEffect(() => {
@@ -21,13 +23,35 @@ export default function ChatsMonitoring() {
     try {
       setLoading(true);
       const data = await api.getAdminChats(limit, offset);
-      setMatches(data.matches || []);
+      const matchesList = data.matches || [];
+      setAllMatches(matchesList);
+      setMatches(matchesList);
       setTotal(data.total);
     } catch (error) {
       console.error('Failed to load matches:', error);
     } finally {
       setLoading(false);
     }
+  };
+
+  const filterMatches = (query: string) => {
+    if (!query.trim()) {
+      setMatches(allMatches);
+      return;
+    }
+    const lowerQuery = query.toLowerCase();
+    const filtered = allMatches.filter((match) => {
+      const userAName = (match.userA.displayName || match.userA.email || '').toLowerCase();
+      const userBName = (match.userB.displayName || match.userB.email || '').toLowerCase();
+      const lastMessage = match.messages[0]?.content?.toLowerCase() || '';
+      return userAName.includes(lowerQuery) || userBName.includes(lowerQuery) || lastMessage.includes(lowerQuery);
+    });
+    setMatches(filtered);
+  };
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    filterMatches(searchQuery);
   };
 
   const viewMessages = async (match: any) => {
@@ -57,10 +81,27 @@ export default function ChatsMonitoring() {
           <p className="text-gray-400">Monitor all conversations on the platform</p>
         </div>
 
+        {/* Search Bar */}
+        <form onSubmit={handleSearch} className="mb-4">
+          <div className="relative">
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                filterMatches(e.target.value);
+              }}
+              placeholder="Search by name, email, or message..."
+              className="w-full px-4 py-2 pl-10 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500"
+            />
+            <span className="absolute left-3 top-2.5 text-gray-500">🔍</span>
+          </div>
+        </form>
+
         <div className="bg-gray-800 rounded-xl border border-gray-700 flex-1 flex flex-col overflow-hidden">
           <div className="p-4 border-b border-gray-700">
             <div className="text-gray-400 text-sm">
-              {total} total conversations
+              Showing {matches.length} of {total} conversations
             </div>
           </div>
 
