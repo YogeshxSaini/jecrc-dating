@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import NotificationBell from '@/components/NotificationBell';
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -51,6 +52,7 @@ export default function DashboardPage() {
               </span>
             </div>
             <div className="flex items-center space-x-4">
+              <NotificationBell />
               <span className="text-gray-700">{user.email}</span>
               <button
                 onClick={handleLogout}

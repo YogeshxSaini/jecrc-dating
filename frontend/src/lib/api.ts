@@ -326,6 +326,22 @@ class ApiClient {
     const response = await this.client.put('/api/admin/settings', settings);
     return response.data;
   }
+
+  // Notifications
+  async getNotifications() {
+    const response = await this.client.get('/api/notifications');
+    return response.data.notifications;
+  }
+
+  async markNotificationAsRead(notificationId: string) {
+    const response = await this.client.put(`/api/notifications/${notificationId}/read`);
+    return response.data;
+  }
+
+  async markAllNotificationsAsRead() {
+    const response = await this.client.put('/api/notifications/read-all');
+    return response.data;
+  }
 }
 
 export const apiClient = new ApiClient();
