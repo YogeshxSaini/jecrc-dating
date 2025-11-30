@@ -78,26 +78,48 @@ export default function MatchesPage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {matches.map((match: any) => {
-              const otherUser = match.userA || match.userB;
+              const otherUser = match.user;
+              const profilePhoto = otherUser?.profile?.photos?.[0]?.url;
+              
               return (
                 <Link
                   key={match.id}
                   href={`/messages?matchId=${match.id}`}
                   className="bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-xl transition"
                 >
-                  <div className="h-48 bg-gradient-to-br from-purple-400 to-pink-400 flex items-center justify-center text-white text-6xl">
-                    {otherUser?.displayName?.[0] || '👤'}
+                  <div className="h-48 bg-gradient-to-br from-purple-400 to-pink-400 flex items-center justify-center text-white text-6xl relative overflow-hidden">
+                    {profilePhoto ? (
+                      <img 
+                        src={profilePhoto} 
+                        alt={otherUser?.displayName}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <span>{otherUser?.displayName?.[0] || '👤'}</span>
+                    )}
+                    {otherUser?.verifiedSelfie && (
+                      <div className="absolute top-2 right-2 bg-blue-500 text-white rounded-full p-1">
+                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                    )}
                   </div>
                   <div className="p-6">
                     <h3 className="text-xl font-bold text-gray-900 mb-1">
-                      {otherUser?.displayName}
+                      {otherUser?.displayName || 'Unknown User'}
                     </h3>
                     <p className="text-gray-600 text-sm mb-3">
                       {otherUser?.profile?.department || 'JECRC'} • Year {otherUser?.profile?.year || 'N/A'}
                     </p>
-                    <p className="text-gray-700 text-sm line-clamp-2">
+                    <p className="text-gray-700 text-sm line-clamp-2 mb-3">
                       {otherUser?.profile?.bio || 'No bio yet'}
                     </p>
+                    {match.lastMessage && (
+                      <p className="text-gray-500 text-xs mb-2 line-clamp-1">
+                        💬 {match.lastMessage.content}
+                      </p>
+                    )}
                     <div className="mt-4 flex items-center text-purple-600 text-sm font-semibold">
                       <span>💬 Send a message</span>
                     </div>
