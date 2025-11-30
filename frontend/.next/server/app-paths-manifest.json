@@ -1,8 +1,7 @@
 {
   "/_not-found": "app/_not-found.js",
-  "/contact/page": "app/contact/page.js",
   "/discover/page": "app/discover/page.js",
-  "/help/page": "app/help/page.js",
+  "/contact/page": "app/contact/page.js",
   "/dashboard/page": "app/dashboard/page.js",
   "/login/page": "app/login/page.js",
   "/matches/page": "app/matches/page.js",
@@ -10,10 +9,11 @@
   "/likes/page": "app/likes/page.js",
   "/privacy/page": "app/privacy/page.js",
   "/messages/page": "app/messages/page.js",
-  "/safety/page": "app/safety/page.js",
   "/profile/page": "app/profile/page.js",
-  "/signup/page": "app/signup/page.js",
+  "/safety/page": "app/safety/page.js",
   "/settings/page": "app/settings/page.js",
   "/terms/page": "app/terms/page.js",
-  "/verify/page": "app/verify/page.js"
+  "/signup/page": "app/signup/page.js",
+  "/verify/page": "app/verify/page.js",
+  "/help/page": "app/help/page.js"
 }

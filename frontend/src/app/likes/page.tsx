@@ -22,7 +22,13 @@ export default function LikesPage() {
   const loadLikes = async () => {
     try {
       const data = await api.getReceivedLikes();
-      setLikes(data.likes || []);
+      // Map fromUser to liker for consistency
+      const mappedLikes = (data.likes || []).map((like: any) => ({
+        ...like,
+        liker: like.fromUser,
+        likerId: like.fromUserId,
+      }));
+      setLikes(mappedLikes);
     } catch (error) {
       console.error('Error loading likes:', error);
     } finally {
@@ -84,50 +90,55 @@ export default function LikesPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {likes.map((like) => (
-              <div key={like.id} className="bg-white rounded-lg shadow-sm overflow-hidden hover:shadow-md transition">
-                <div className="p-6">
-                  <div className="flex items-center mb-4">
-                    <div className="w-16 h-16 rounded-full bg-gradient-to-br from-purple-400 to-pink-400 flex items-center justify-center text-white text-2xl font-bold">
-                      {like.liker.displayName[0]}
+            {likes.map((like) => {
+              const displayName = like.liker?.displayName || 'Anonymous';
+              const firstLetter = displayName[0]?.toUpperCase() || '?';
+              
+              return (
+                <div key={like.id} className="bg-white rounded-lg shadow-sm overflow-hidden hover:shadow-md transition">
+                  <div className="p-6">
+                    <div className="flex items-center mb-4">
+                      <div className="w-16 h-16 rounded-full bg-gradient-to-br from-purple-400 to-pink-400 flex items-center justify-center text-white text-2xl font-bold">
+                        {firstLetter}
+                      </div>
+                      <div className="ml-4 flex-1">
+                        <h3 className="text-xl font-bold text-gray-900">{displayName}</h3>
+                        {like.liker?.profile && (
+                          <p className="text-gray-600">
+                            {like.liker.profile.department || 'Department not set'} • Year {like.liker.profile.year || 'N/A'}
+                          </p>
+                        )}
+                      </div>
                     </div>
-                    <div className="ml-4 flex-1">
-                      <h3 className="text-xl font-bold text-gray-900">{like.liker.displayName}</h3>
-                      {like.liker.profile && (
-                        <p className="text-gray-600">
-                          {like.liker.profile.department} • Year {like.liker.profile.year}
-                        </p>
-                      )}
-                    </div>
+                    
+                    {like.liker?.profile?.bio && (
+                      <p className="text-gray-700 mb-4">{like.liker.profile.bio}</p>
+                    )}
+                    
+                    {like.liker?.profile?.interests && like.liker.profile.interests.length > 0 && (
+                      <div className="flex flex-wrap gap-2 mb-4">
+                        {like.liker.profile.interests.slice(0, 3).map((interest: string, idx: number) => (
+                          <span key={idx} className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-sm">
+                            {interest}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                    
+                    <button
+                      onClick={() => handleLikeBack(like.likerId)}
+                      className="w-full px-4 py-2 bg-purple-600 text-white font-semibold rounded-lg hover:bg-purple-700 transition"
+                    >
+                      💕 Like Back
+                    </button>
+                    
+                    <p className="text-sm text-gray-500 text-center mt-2">
+                      Liked you {new Date(like.createdAt).toLocaleDateString()}
+                    </p>
                   </div>
-                  
-                  {like.liker.profile?.bio && (
-                    <p className="text-gray-700 mb-4">{like.liker.profile.bio}</p>
-                  )}
-                  
-                  {like.liker.profile?.interests && like.liker.profile.interests.length > 0 && (
-                    <div className="flex flex-wrap gap-2 mb-4">
-                      {like.liker.profile.interests.slice(0, 3).map((interest: string, idx: number) => (
-                        <span key={idx} className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-sm">
-                          {interest}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                  
-                  <button
-                    onClick={() => handleLikeBack(like.likerId)}
-                    className="w-full px-4 py-2 bg-purple-600 text-white font-semibold rounded-lg hover:bg-purple-700 transition"
-                  >
-                    💕 Like Back
-                  </button>
-                  
-                  <p className="text-sm text-gray-500 text-center mt-2">
-                    Liked you {new Date(like.createdAt).toLocaleDateString()}
-                  </p>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
