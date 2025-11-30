@@ -29,11 +29,22 @@ router.get(
 
     const likedIds = likedUserIds.map(like => like.toUserId);
 
+    // Get IDs of users already passed
+    const passedUserIds = await prisma.pass.findMany({
+      where: { fromUserId: req.user!.id },
+      select: { toUserId: true },
+    });
+
+    const passedIds = passedUserIds.map(pass => pass.toUserId);
+
+    // Combine liked and passed IDs to exclude
+    const excludedIds = [...likedIds, ...passedIds];
+
     // Build filter conditions
     const whereConditions: any = {
       id: {
         not: req.user!.id, // Exclude self
-        notIn: likedIds, // Exclude already liked users
+        notIn: excludedIds, // Exclude already liked/passed users
       },
       isActive: true,
       isBanned: false,
@@ -46,7 +57,7 @@ router.get(
       };
     }
 
-    // Get potential matches
+    // Get ALL potential matches (no limit for true randomization)
     const users = await prisma.user.findMany({
       where: whereConditions,
       select: {
@@ -62,22 +73,29 @@ router.get(
           },
         },
       },
-      skip: offset,
-      take: limit,
-      // Randomize order for variety
-      orderBy: {
-        createdAt: 'desc',
-      },
     });
 
-    // Filter out users without profiles (photos are optional for now)
+    // Filter out users without profiles
     const usersWithProfiles = users.filter(user => user.profile);
+
+    // Randomize ALL users using Fisher-Yates shuffle for better distribution
+    const shuffled = [...usersWithProfiles];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+
+    // Apply pagination after randomization
+    const paginatedUsers = shuffled.slice(offset, offset + limit);
+
+    // Apply pagination after randomization
+    const paginatedUsers = shuffled.slice(offset, offset + limit);
 
     res.json({
       success: true,
-      users: usersWithProfiles,
-      count: usersWithProfiles.length,
-      hasMore: usersWithProfiles.length === limit,
+      users: paginatedUsers,
+      count: paginatedUsers.length,
+      hasMore: shuffled.length > offset + limit,
     });
   })
 );
@@ -124,6 +142,51 @@ router.get(
     res.json({
       success: true,
       user,
+    });
+  })
+);
+
+/**
+ * POST /api/discover/pass/:userId
+ * Record that current user passed/swiped left on a profile
+ */
+router.post(
+  '/pass/:userId',
+  authenticate,
+  asyncHandler(async (req: AuthRequest, res: Response) => {
+    const { userId } = req.params;
+
+    if (userId === req.user!.id) {
+      throw new AppError('Cannot pass on your own profile', 400);
+    }
+
+    // Check if user exists
+    const targetUser = await prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!targetUser) {
+      throw new AppError('User not found', 404);
+    }
+
+    // Create pass record (upsert to handle duplicates gracefully)
+    await prisma.pass.upsert({
+      where: {
+        fromUserId_toUserId: {
+          fromUserId: req.user!.id,
+          toUserId: userId,
+        },
+      },
+      create: {
+        fromUserId: req.user!.id,
+        toUserId: userId,
+      },
+      update: {}, // No updates needed if already exists
+    });
+
+    res.json({
+      success: true,
+      message: 'Pass recorded',
     });
   })
 );

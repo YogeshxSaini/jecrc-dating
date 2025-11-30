@@ -32,6 +32,8 @@ model User {
   refreshTokens     RefreshToken[]
   likesGiven        Like[]              @relation("LikesGiven")
   likesReceived     Like[]              @relation("LikesReceived")
+  passesGiven       Pass[]              @relation("PassesGiven")
+  passesReceived    Pass[]              @relation("PassesReceived")
   matchesAsUserA    Match[]             @relation("MatchUserA")
   matchesAsUserB    Match[]             @relation("MatchUserB")
   messages          Message[]
@@ -169,6 +171,22 @@ model Like {
   @@index([fromUserId])
   @@index([toUserId])
   @@map("likes")
+}
+
+// Pass model - user passes/swipes left on another user
+model Pass {
+  id         String   @id @default(uuid())
+  fromUserId String
+  toUserId   String
+  createdAt  DateTime @default(now())
+
+  fromUser User @relation("PassesGiven", fields: [fromUserId], references: [id], onDelete: Cascade)
+  toUser   User @relation("PassesReceived", fields: [toUserId], references: [id], onDelete: Cascade)
+
+  @@unique([fromUserId, toUserId]) // Prevent duplicate passes
+  @@index([fromUserId])
+  @@index([toUserId])
+  @@map("passes")
 }
 
 // Match model - mutual likes create a match
