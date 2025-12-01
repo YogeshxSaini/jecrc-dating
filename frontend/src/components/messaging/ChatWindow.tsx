@@ -184,7 +184,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ matchId, user, currentUs
 
   if (loading) {
     return (
-      <div className="flex flex-col h-full bg-gray-50">
+      <div className="flex flex-col h-full w-full bg-gray-50">
         {/* Header */}
         <div className="bg-white border-b p-4 flex items-center gap-3">
           <div className="relative">
@@ -216,7 +216,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ matchId, user, currentUs
 
   if (error) {
     return (
-      <div className="flex flex-col h-full bg-gray-50">
+      <div className="flex flex-col h-full w-full bg-gray-50">
         {/* Header */}
         <div className="bg-white border-b p-4 flex items-center gap-3">
           <div className="relative">
@@ -248,7 +248,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ matchId, user, currentUs
   }
 
   return (
-    <div className="flex flex-col h-full bg-gray-50">
+    <div className="flex flex-col h-full w-full bg-gray-50">
       {/* Header */}
       <div className="bg-white border-b p-4 flex items-center gap-3">
         <div className="relative">
