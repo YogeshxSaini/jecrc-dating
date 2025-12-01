@@ -1,6 +1,7 @@
 import { Server as SocketIOServer, Socket } from 'socket.io';
 import { Server as HTTPServer } from 'http';
 import jwt from 'jsonwebtoken';
+import config from '../config';
 import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
@@ -25,6 +26,7 @@ export const initializeMessagingServer = (httpServer: HTTPServer) => {
     cors: {
       origin: [
         'http://localhost:3000',
+        'http://127.0.0.1:3000',
         'https://dayalcolonizers.xyz',
         /\.pages\.dev$/,
         /\.onrender\.com$/,
@@ -39,19 +41,38 @@ export const initializeMessagingServer = (httpServer: HTTPServer) => {
   // Authentication middleware
   io.use(async (socket: Socket, next) => {
     try {
-      const token = socket.handshake.auth.token;
+      let token = socket.handshake.auth.token as string | undefined;
 
       if (!token) {
         return next(new Error('Authentication token required'));
       }
+      // Support tokens with optional 'Bearer ' prefix
+      if (token.startsWith('Bearer ')) {
+        token = token.slice('Bearer '.length);
+      }
 
-      const decoded = jwt.verify(token, process.env.JWT_SECRET!) as { userId: string };
-      (socket as AuthenticatedSocket).userId = decoded.userId;
+      const decoded = jwt.verify(token, config.jwtSecret) as { userId?: string; id?: string };
+      const resolvedUserId = decoded.userId || decoded.id;
 
-      console.log(`User ${decoded.userId} authenticated on socket ${socket.id}`);
+      if (!resolvedUserId || typeof resolvedUserId !== 'string') {
+        return next(new Error('Authentication failed: invalid token payload'));
+      }
+
+      (socket as AuthenticatedSocket).userId = resolvedUserId;
+
+      console.log(`User ${resolvedUserId} authenticated on socket ${socket.id}`);
       next();
-    } catch (error) {
-      console.error('Socket authentication error:', error);
+    } catch (error: any) {
+      console.error('Socket authentication error:', error?.name || 'Error', error?.message || error);
+      try {
+        // Provide more context if possible
+        const raw = socket.handshake.auth.token as string | undefined;
+        console.warn('Socket auth context:', {
+          hasToken: !!raw,
+          tokenStartsWithBearer: raw ? raw.startsWith('Bearer ') : false,
+          origin: (socket.handshake.headers && socket.handshake.headers.origin) || 'unknown',
+        });
+      } catch {}
       next(new Error('Authentication failed'));
     }
   });
@@ -95,12 +116,26 @@ export const initializeMessagingServer = (httpServer: HTTPServer) => {
     // Handle sending messages
     socket.on('send_message', async (data: { matchId: string; content: string }, callback) => {
       try {
-        console.log(`User ${userId} sending message to match ${data.matchId}`);
+        const { matchId, content } = data || {};
+
+        if (!matchId || typeof matchId !== 'string') {
+          callback?.({ error: 'Invalid matchId' });
+          return;
+        }
+
+        if (!content || typeof content !== 'string' || !content.trim()) {
+          callback?.({ error: 'Message content required' });
+          return;
+        }
+
+        console.log(
+          `User ${userId} sending message to match ${matchId} (socket ${socket.id})`
+        );
 
         // Verify match exists and user is part of it
         const match = await prisma.match.findFirst({
           where: {
-            id: data.matchId,
+            id: matchId,
             OR: [{ userAId: userId }, { userBId: userId }],
           },
           include: {
@@ -120,6 +155,10 @@ export const initializeMessagingServer = (httpServer: HTTPServer) => {
         });
 
         if (!match) {
+          console.warn(
+            'send_message: Match not found or unauthorized',
+            JSON.stringify({ userId, matchId }, null, 2)
+          );
           callback?.({ error: 'Match not found or unauthorized' });
           return;
         }
@@ -127,9 +166,9 @@ export const initializeMessagingServer = (httpServer: HTTPServer) => {
         // Create message
         const message = await prisma.message.create({
           data: {
-            matchId: data.matchId,
+            matchId,
             senderId: userId,
-            content: data.content.trim(),
+            content: content.trim(),
           },
           include: {
             sender: {
@@ -146,6 +185,9 @@ export const initializeMessagingServer = (httpServer: HTTPServer) => {
 
         // Send message to recipient
         io.to(`user_${recipientId}`).emit('new_message', message);
+        
+        // Also send to sender so they see their own message
+        io.to(`user_${userId}`).emit('new_message', message);
 
         // Send confirmation back to sender
         callback?.({ success: true, message });
