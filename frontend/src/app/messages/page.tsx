@@ -22,6 +22,7 @@ export default function MessagesPage() {
   const [typingTimeout, setTypingTimeout] = useState<NodeJS.Timeout | null>(null);
   const [otherUserTyping, setOtherUserTyping] = useState(false);
   const [typingUser, setTypingUser] = useState<string>('');
+  const [socketConnected, setSocketConnected] = useState(false);
   
   // Ref for auto-scrolling to bottom
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -35,6 +36,21 @@ export default function MessagesPage() {
     
     // Initialize Socket.IO connection
     const socket = initializeSocket(token);
+    
+    // Monitor socket connection status
+    socket.on('connect', () => {
+      console.log('✅ Socket connected in messages page');
+      setSocketConnected(true);
+      // Rejoin match room if we were in one
+      if (selectedMatch) {
+        joinMatch(selectedMatch.id);
+      }
+    });
+
+    socket.on('disconnect', () => {
+      console.log('❌ Socket disconnected in messages page');
+      setSocketConnected(false);
+    });
     
     // Get current user ID
     const fetchUserData = async () => {
@@ -245,15 +261,24 @@ export default function MessagesPage() {
               <>
                 {/* Chat Header */}
                 <div className="p-4 border-b border-gray-200 bg-gray-50">
-                  <div className="flex items-center">
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-400 to-pink-400 flex items-center justify-center text-white font-bold">
-                      {selectedMatch.user?.displayName?.[0] || '?'}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-400 to-pink-400 flex items-center justify-center text-white font-bold">
+                        {selectedMatch.user?.displayName?.[0] || '?'}
+                      </div>
+                      <div className="ml-3">
+                        <p className="font-medium text-gray-900">
+                          {selectedMatch.user?.displayName || 'Unknown'}
+                        </p>
+                        <p className="text-sm text-gray-500">Active now</p>
+                      </div>
                     </div>
-                    <div className="ml-3">
-                      <p className="font-medium text-gray-900">
-                        {selectedMatch.user?.displayName || 'Unknown'}
-                      </p>
-                      <p className="text-sm text-gray-500">Active now</p>
+                    {/* Connection Status */}
+                    <div className="flex items-center space-x-2">
+                      <div className={`w-2 h-2 rounded-full ${socketConnected ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                      <span className="text-xs text-gray-500">
+                        {socketConnected ? 'Connected' : 'Reconnecting...'}
+                      </span>
                     </div>
                   </div>
                 </div>

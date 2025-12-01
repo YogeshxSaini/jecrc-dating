@@ -14,19 +14,45 @@ export const initializeSocket = (token: string): Socket => {
       token: token,
     },
     transports: ['websocket', 'polling'],
+    reconnection: true,
+    reconnectionAttempts: Infinity,
+    reconnectionDelay: 1000,
+    reconnectionDelayMax: 5000,
     timeout: 20000,
+    autoConnect: true,
   });
 
   socket.on('connect', () => {
-    console.log('Socket connected:', socket?.id);
+    console.log('✅ Socket connected:', socket?.id);
   });
 
   socket.on('disconnect', (reason) => {
-    console.log('Socket disconnected:', reason);
+    console.log('❌ Socket disconnected:', reason);
+    if (reason === 'io server disconnect') {
+      // Server disconnected, try to reconnect
+      socket?.connect();
+    }
+  });
+
+  socket.on('reconnect', (attemptNumber) => {
+    console.log('🔄 Socket reconnected after', attemptNumber, 'attempts');
+  });
+
+  socket.on('reconnect_attempt', (attemptNumber) => {
+    console.log('🔄 Reconnection attempt:', attemptNumber);
   });
 
   socket.on('connect_error', (error) => {
-    console.error('Socket connection error:', error);
+    console.error('❌ Socket connection error:', error.message);
+  });
+
+  socket.on('error', (error) => {
+    console.error('❌ Socket error:', error);
+  });
+
+  socket.on('message_error', (data) => {
+    console.error('❌ Message error:', data.error);
+    alert(data.error || 'Failed to send message');
   });
 
   return socket;
@@ -43,28 +69,56 @@ export const disconnectSocket = () => {
   }
 };
 
+export const isSocketConnected = (): boolean => {
+  return socket?.connected || false;
+};
+
 // Message-related socket functions
 export const joinMatch = (matchId: string) => {
-  if (socket && socket.connected) {
+  if (socket) {
+    if (!socket.connected) {
+      socket.connect();
+    }
     socket.emit('join_match', matchId);
+    console.log('📩 Joining match room:', matchId);
   }
 };
 
 export const leaveMatch = (matchId: string) => {
   if (socket && socket.connected) {
     socket.emit('leave_match', matchId);
+    console.log('📤 Leaving match room:', matchId);
   }
 };
 
 export const sendMessage = (matchId: string, content: string) => {
-  if (socket && socket.connected) {
-    socket.emit('send_message', { matchId, content });
+  if (socket) {
+    if (!socket.connected) {
+      console.error('Socket not connected, attempting to reconnect...');
+      socket.connect();
+      // Wait a bit for reconnection before sending
+      setTimeout(() => {
+        if (socket?.connected) {
+          socket.emit('send_message', { matchId, content });
+          console.log('📨 Sending message to match:', matchId);
+        } else {
+          alert('Connection lost. Please try again.');
+        }
+      }, 1000);
+    } else {
+      socket.emit('send_message', { matchId, content });
+      console.log('📨 Sending message to match:', matchId);
+    }
   }
 };
 
 export const onNewMessage = (callback: (data: any) => void) => {
   if (socket) {
-    socket.on('new_message', callback);
+    socket.off('new_message'); // Remove old listeners
+    socket.on('new_message', (data) => {
+      console.log('📬 New message received:', data);
+      callback(data);
+    });
   }
 };
 
@@ -89,12 +143,14 @@ export const stopTyping = (matchId: string) => {
 
 export const onUserTyping = (callback: (data: any) => void) => {
   if (socket) {
+    socket.off('user_typing'); // Remove old listeners
     socket.on('user_typing', callback);
   }
 };
 
 export const onUserStopTyping = (callback: (data: any) => void) => {
   if (socket) {
+    socket.off('user_stop_typing'); // Remove old listeners
     socket.on('user_stop_typing', callback);
   }
 };
