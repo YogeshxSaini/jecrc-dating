@@ -199,19 +199,6 @@ class ApiClient {
     return response.data;
   }
 
-  // Chat endpoints
-  async getMessages(matchId: string, limit = 50, offset = 0) {
-    const response = await this.client.get(`/api/chat/${matchId}/messages`, {
-      params: { limit, offset },
-    });
-    return response.data;
-  }
-
-  async sendMessage(matchId: string, content: string) {
-    const response = await this.client.post(`/api/chat/${matchId}/messages`, { content });
-    return response.data;
-  }
-
   // Admin endpoints
   async getPhotoVerifications(status?: string) {
     const response = await this.client.get('/api/admin/photo-verifications', {
@@ -299,13 +286,6 @@ class ApiClient {
   async getAdminChats(limit = 20, offset = 0) {
     const response = await this.client.get('/api/admin/chats', {
       params: { limit, offset },
-    });
-    return response.data;
-  }
-
-  async getAdminChatMessages(matchId: string, limit = 100) {
-    const response = await this.client.get(`/api/admin/chats/${matchId}/messages`, {
-      params: { limit },
     });
     return response.data;
   }

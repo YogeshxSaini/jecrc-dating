@@ -1,13 +1,11 @@
 import express, { Application, Request, Response, NextFunction } from 'express';
 import http from 'http';
-import { Server as SocketIOServer } from 'socket.io';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import compression from 'compression';
 import dotenv from 'dotenv';
 import { PrismaClient } from '@prisma/client';
-import { initializeSocketIO } from './socket';
 import { errorHandler } from './middleware/errorHandler';
 import { rateLimiter } from './middleware/rateLimiter';
 
@@ -17,7 +15,6 @@ import profileRoutes from './routes/profile';
 import discoverRoutes from './routes/discover';
 import likesRoutes from './routes/likes';
 import matchesRoutes from './routes/matches';
-import chatRoutes from './routes/chat';
 import adminRoutes from './routes/admin';
 import notificationRoutes from './routes/notifications';
 import photosRoutes from './routes/photos';
@@ -44,36 +41,6 @@ const allowedOrigins: string[] = [
   'https://dayalcolonizers.xyz',
   process.env.FRONTEND_URL,
 ].filter((origin): origin is string => Boolean(origin));
-
-// Initialize Socket.IO with better configuration
-const io = new SocketIOServer(server, {
-  cors: {
-    origin: (origin, callback) => {
-      // Allow requests with no origin (mobile apps, Postman, etc.)
-      if (!origin) return callback(null, true);
-      
-      // Check if origin is allowed or matches cloudflare patterns
-      if (allowedOrigins.includes(origin) || 
-          origin.endsWith('.trycloudflare.com') || 
-          origin.endsWith('.pages.dev') ||
-          origin.endsWith('.onrender.com')) {
-        callback(null, true);
-      } else {
-        console.log('CORS blocked origin:', origin);
-        callback(null, true); // Allow anyway for debugging
-      }
-    },
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    credentials: true,
-    allowedHeaders: ['Content-Type', 'Authorization'],
-  },
-  transports: ['polling', 'websocket'],
-  pingTimeout: 60000,
-  pingInterval: 25000,
-  upgradeTimeout: 30000,
-  maxHttpBufferSize: 1e6,
-  allowEIO3: true, // Allow older clients
-});
 
 // Middleware
 app.use(helmet()); // Security headers
@@ -116,7 +83,6 @@ app.get('/', (req: Request, res: Response) => {
       discover: '/api/discover',
       likes: '/api/likes',
       matches: '/api/matches',
-      chat: '/api/chat',
       admin: '/api/admin',
       notifications: '/api/notifications',
       photos: '/api/photos',
@@ -132,16 +98,6 @@ app.get('/health', (req: Request, res: Response) => {
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
     environment: process.env.NODE_ENV,
-  });
-});
-
-// Socket.IO health check
-app.get('/socket.io/health', (req: Request, res: Response) => {
-  res.json({
-    status: 'ok',
-    socketio: 'initialized',
-    connectedSockets: io.engine.clientsCount || 0,
-    timestamp: new Date().toISOString(),
   });
 });
 
@@ -172,7 +128,6 @@ app.use('/api/profile', profileRoutes);
 app.use('/api/discover', discoverRoutes);
 app.use('/api/likes', likesRoutes);
 app.use('/api/matches', matchesRoutes);
-app.use('/api/chat', chatRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/photos', photosRoutes);
@@ -187,9 +142,6 @@ app.use((req: Request, res: Response) => {
 
 // Error handling middleware
 app.use(errorHandler);
-
-// Initialize Socket.IO handlers
-initializeSocketIO(io);
 
 // Start server
 const PORT = process.env.PORT || 4000;
@@ -218,5 +170,3 @@ process.on('SIGINT', async () => {
     process.exit(0);
   });
 });
-
-export { io };
