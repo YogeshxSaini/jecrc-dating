@@ -94,11 +94,6 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ matchId, user, currentUs
     return unsubscribe;
   }, [matchId, addMessageListener, markAsRead, user]);
 
-  // Scroll to bottom on new messages or typing indicator
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages, isTyping]);
-
   const fetchMessages = async () => {
     try {
       setLoading(true);
@@ -181,6 +176,11 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ matchId, user, currentUs
 
   const isOnline = onlineStatus[user.id] || false;
   const isTyping = typingUsers.some((t) => t.matchId === matchId && t.userId === user.id);
+
+  // Scroll to bottom on new messages or typing indicator
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages, isTyping]);
 
   if (loading) {
     return (
