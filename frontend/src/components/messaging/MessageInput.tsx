@@ -96,7 +96,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({ onSendMessage, match
                 : 'Type a message...'
             }
             disabled={isDisabled}
-            className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-full resize-none focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed max-h-32 overflow-y-auto"
+            className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-full resize-none focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed max-h-32 overflow-y-auto text-gray-900 placeholder-gray-400"
             rows={1}
             style={{ minHeight: '48px' }}
           />
