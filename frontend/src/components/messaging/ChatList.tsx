@@ -34,9 +34,20 @@ export const ChatList: React.FC<ChatListProps> = ({ onSelectChat, selectedMatchI
   const [matches, setMatches] = useState<Match[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { connectionStatus, onlineStatus, addMessageListener } = useMessaging();
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const { connectionStatus, onlineStatus, addMessageListener, addReadReceiptListener } = useMessaging();
 
   useEffect(() => {
+    // Get current user ID from token
+    const token = localStorage.getItem('accessToken');
+    if (token) {
+      try {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        setCurrentUserId(payload.id);
+      } catch (error) {
+        console.error('Error decoding token:', error);
+      }
+    }
     fetchMatches();
   }, []);
 
@@ -46,6 +57,11 @@ export const ChatList: React.FC<ChatListProps> = ({ onSelectChat, selectedMatchI
       setMatches((prev) =>
         prev.map((match) => {
           if (match.matchId === message.matchId) {
+            // Only increment unread if message is from the other user AND chat is not selected
+            const shouldIncrementUnread = 
+              message.senderId === match.user.id && 
+              selectedMatchId !== match.matchId;
+            
             return {
               ...match,
               lastMessage: {
@@ -54,13 +70,10 @@ export const ChatList: React.FC<ChatListProps> = ({ onSelectChat, selectedMatchI
                 senderId: message.senderId,
                 createdAt: message.createdAt,
                 sender: {
-                  displayName: message.sender?.name || 'User',
+                  displayName: (message as any).sender?.displayName || (message as any).sender?.name || 'User',
                 },
               },
-              unreadCount:
-                message.senderId !== match.user.id
-                  ? match.unreadCount + 1
-                  : match.unreadCount,
+              unreadCount: shouldIncrementUnread ? match.unreadCount + 1 : match.unreadCount,
             };
           }
           return match;
@@ -69,20 +82,27 @@ export const ChatList: React.FC<ChatListProps> = ({ onSelectChat, selectedMatchI
     });
 
     return unsubscribe;
-  }, [addMessageListener]);
+  }, [addMessageListener, selectedMatchId]);
 
   const fetchMatches = async () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('accessToken');
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/messages/matches`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
+      const isLocalHost = (
+        typeof window !== 'undefined' &&
+        ['localhost', '127.0.0.1', '[::1]', '0.0.0.0'].includes(window.location.hostname)
       );
+      const apiBase = isLocalHost
+        ? 'http://localhost:4000'
+        : process.env.NEXT_PUBLIC_API_URL || 'https://jecrc-dating-backend.onrender.com';
+      const authHeader = token?.startsWith('Bearer ')
+        ? token
+        : `Bearer ${token}`;
+      const response = await fetch(`${apiBase}/api/messages/matches`, {
+        headers: {
+          Authorization: authHeader,
+        },
+      });
 
       const data = await response.json();
 
@@ -187,7 +207,17 @@ export const ChatList: React.FC<ChatListProps> = ({ onSelectChat, selectedMatchI
             return (
               <div
                 key={match.matchId}
-                onClick={() => onSelectChat(match.matchId, match.user)}
+                onClick={() => {
+                  onSelectChat(match.matchId, match.user);
+                  // Clear unread count when chat is selected
+                  if (match.unreadCount > 0) {
+                    setMatches((prev) =>
+                      prev.map((m) =>
+                        m.matchId === match.matchId ? { ...m, unreadCount: 0 } : m
+                      )
+                    );
+                  }
+                }}
                 className={`p-4 border-b cursor-pointer transition-colors ${
                   isSelected ? 'bg-pink-50' : 'hover:bg-gray-50'
                 }`}

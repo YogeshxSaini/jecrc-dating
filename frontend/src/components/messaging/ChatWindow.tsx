@@ -86,13 +86,15 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ matchId, user, currentUs
           ];
         });
         
-        // Mark as read when new message arrives
-        setTimeout(() => markAsRead(matchId), 100);
+        // Only mark as read if message is from the other user (not from current user)
+        if (message.senderId === user.id) {
+          setTimeout(() => markAsRead(matchId), 100);
+        }
       }
     });
 
     return unsubscribe;
-  }, [matchId, addMessageListener, markAsRead, user]);
+  }, [matchId, addMessageListener, markAsRead, user, currentUserId]);
 
   const fetchMessages = async () => {
     try {
