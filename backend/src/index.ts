@@ -135,6 +135,16 @@ app.get('/health', (req: Request, res: Response) => {
   });
 });
 
+// Socket.IO health check
+app.get('/socket.io/health', (req: Request, res: Response) => {
+  res.json({
+    status: 'ok',
+    socketio: 'initialized',
+    connectedSockets: io.engine.clientsCount || 0,
+    timestamp: new Date().toISOString(),
+  });
+});
+
 // Debug endpoint to test database connection
 app.get('/debug/db', async (req: Request, res: Response) => {
   try {

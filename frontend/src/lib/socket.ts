@@ -6,10 +6,15 @@ export const initializeSocket = (token: string): Socket => {
   const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:4000';
   
   if (socket && socket.connected) {
+    console.log('♻️ Reusing existing socket connection');
     return socket;
   }
 
+  console.log('🔌 Initializing socket connection to:', SOCKET_URL);
+  console.log('🔑 Using token:', token ? 'Present' : 'Missing');
+
   socket = io(SOCKET_URL, {
+    path: '/socket.io/',
     auth: {
       token: token,
     },
@@ -22,6 +27,7 @@ export const initializeSocket = (token: string): Socket => {
     autoConnect: true,
     forceNew: false,
     upgrade: true, // Allow upgrade from polling to websocket
+    withCredentials: true,
   });
 
   socket.on('connect', () => {
