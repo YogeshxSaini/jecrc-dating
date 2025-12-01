@@ -4,7 +4,6 @@ import { useEffect, useState, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { api } from '@/lib/api';
-import { initializeSocket, joinMatch, leaveMatch, sendMessage, onNewMessage, offNewMessage, startTyping, stopTyping, onUserTyping, onUserStopTyping, offTypingEvents } from '@/lib/socket';
 
 export default function MessagesPage() {
   const router = useRouter();
