@@ -5,7 +5,6 @@ const index_1 = require("../index");
 const errorHandler_1 = require("../middleware/errorHandler");
 const auth_1 = require("../middleware/auth");
 const rateLimiter_1 = require("../middleware/rateLimiter");
-const index_2 = require("../index");
 const router = (0, express_1.Router)();
 /**
  * POST /api/likes
@@ -104,14 +103,7 @@ router.post('/', auth_1.authenticate, rateLimiter_1.likeRateLimiter, (0, errorHa
                 },
             ],
         });
-        // Emit real-time match notification via Socket.IO
-        index_2.io.to(toUserId).emit('new_match', {
-            matchId: match.id,
-            user: {
-                id: req.user.id,
-                displayName: req.user.email.split('@')[0],
-            },
-        });
+        // Match notification created above
     }
     else {
         // Create notification for liked user

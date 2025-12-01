@@ -3,17 +3,15 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.io = exports.prisma = void 0;
+exports.prisma = void 0;
 const express_1 = __importDefault(require("express"));
 const http_1 = __importDefault(require("http"));
-const socket_io_1 = require("socket.io");
 const cors_1 = __importDefault(require("cors"));
 const helmet_1 = __importDefault(require("helmet"));
 const morgan_1 = __importDefault(require("morgan"));
 const compression_1 = __importDefault(require("compression"));
 const dotenv_1 = __importDefault(require("dotenv"));
 const client_1 = require("@prisma/client");
-const socket_1 = require("./socket");
 const errorHandler_1 = require("./middleware/errorHandler");
 const rateLimiter_1 = require("./middleware/rateLimiter");
 // Import routes
@@ -22,8 +20,11 @@ const profile_1 = __importDefault(require("./routes/profile"));
 const discover_1 = __importDefault(require("./routes/discover"));
 const likes_1 = __importDefault(require("./routes/likes"));
 const matches_1 = __importDefault(require("./routes/matches"));
-const chat_1 = __importDefault(require("./routes/chat"));
 const admin_1 = __importDefault(require("./routes/admin"));
+const notifications_1 = __importDefault(require("./routes/notifications"));
+const photos_1 = __importDefault(require("./routes/photos"));
+const messages_1 = __importDefault(require("./routes/messages"));
+const messagingServer_1 = require("./messaging/messagingServer");
 // Load environment variables
 dotenv_1.default.config();
 // Initialize Prisma Client
@@ -42,15 +43,6 @@ const allowedOrigins = [
     'https://dayalcolonizers.xyz',
     process.env.FRONTEND_URL,
 ].filter((origin) => Boolean(origin));
-// Initialize Socket.IO
-const io = new socket_io_1.Server(server, {
-    cors: {
-        origin: allowedOrigins,
-        methods: ['GET', 'POST'],
-        credentials: true,
-    },
-});
-exports.io = io;
 // Middleware
 app.use((0, helmet_1.default)()); // Security headers
 app.use((0, cors_1.default)({
@@ -91,8 +83,9 @@ app.get('/', (req, res) => {
             discover: '/api/discover',
             likes: '/api/likes',
             matches: '/api/matches',
-            chat: '/api/chat',
             admin: '/api/admin',
+            notifications: '/api/notifications',
+            photos: '/api/photos',
             health: '/health',
         },
     });
@@ -133,8 +126,12 @@ app.use('/api/profile', profile_1.default);
 app.use('/api/discover', discover_1.default);
 app.use('/api/likes', likes_1.default);
 app.use('/api/matches', matches_1.default);
-app.use('/api/chat', chat_1.default);
 app.use('/api/admin', admin_1.default);
+app.use('/api/notifications', notifications_1.default);
+app.use('/api/photos', photos_1.default);
+app.use('/api/messages', messages_1.default);
+// Initialize messaging server (Socket.IO)
+(0, messagingServer_1.initializeMessagingServer)(server);
 // 404 handler
 app.use((req, res) => {
     res.status(404).json({
@@ -144,8 +141,6 @@ app.use((req, res) => {
 });
 // Error handling middleware
 app.use(errorHandler_1.errorHandler);
-// Initialize Socket.IO handlers
-(0, socket_1.initializeSocketIO)(io);
 // Start server
 const PORT = process.env.PORT || 4000;
 server.listen(PORT, () => {

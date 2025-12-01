@@ -18,6 +18,8 @@ import matchesRoutes from './routes/matches';
 import adminRoutes from './routes/admin';
 import notificationRoutes from './routes/notifications';
 import photosRoutes from './routes/photos';
+import messagesRoutes from './routes/messages';
+import { initializeMessagingServer } from './messaging/messagingServer';
 
 // Load environment variables
 dotenv.config();
@@ -131,6 +133,10 @@ app.use('/api/matches', matchesRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/photos', photosRoutes);
+app.use('/api/messages', messagesRoutes);
+
+// Initialize messaging server (Socket.IO)
+initializeMessagingServer(server);
 
 // 404 handler
 app.use((req: Request, res: Response) => {
