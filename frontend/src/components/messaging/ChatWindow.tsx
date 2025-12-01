@@ -62,6 +62,12 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ matchId, user, currentUs
         setMessages((prev): ChatMessage[] => {
           // Avoid duplicates
           if (prev.find((m) => m.id === message.id)) return prev;
+          
+          // Use the user prop for the other user's profile image
+          const senderProfileImage = message.senderId === user.id 
+            ? user.profileImage 
+            : message.sender?.profileImage ?? null;
+          
           return [
             ...prev,
             {
@@ -73,8 +79,8 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ matchId, user, currentUs
               createdAt: message.createdAt,
               sender: {
                 id: message.sender?.id || message.senderId,
-                displayName: (message as any).sender?.displayName || (message as any).sender?.name || 'User',
-                profileImage: message.sender?.profileImage ?? null,
+                displayName: (message as any).sender?.displayName || (message as any).sender?.name || user.displayName,
+                profileImage: senderProfileImage,
               },
             },
           ];
@@ -86,12 +92,12 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ matchId, user, currentUs
     });
 
     return unsubscribe;
-  }, [matchId, addMessageListener, markAsRead]);
+  }, [matchId, addMessageListener, markAsRead, user]);
 
-  // Scroll to bottom on new messages
+  // Scroll to bottom on new messages or typing indicator
   useEffect(() => {
     scrollToBottom();
-  }, [messages]);
+  }, [messages, isTyping]);
 
   const fetchMessages = async () => {
     try {
@@ -99,14 +105,21 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ matchId, user, currentUs
       setError(null);
       
       const token = localStorage.getItem('accessToken');
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/messages/${matchId}`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
+      const isLocalHost = (
+        typeof window !== 'undefined' &&
+        ['localhost', '127.0.0.1', '[::1]', '0.0.0.0'].includes(window.location.hostname)
       );
+      const apiBase = isLocalHost
+        ? 'http://localhost:4000'
+        : process.env.NEXT_PUBLIC_API_URL || 'https://jecrc-dating-backend.onrender.com';
+      const authHeader = token?.startsWith('Bearer ')
+        ? token
+        : `Bearer ${token}`;
+      const response = await fetch(`${apiBase}/api/messages/${matchId}`, {
+        headers: {
+          Authorization: authHeader,
+        },
+      });
 
       const data = await response.json();
 
@@ -271,7 +284,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ matchId, user, currentUs
       {/* Messages */}
       <div 
         ref={messagesContainerRef}
-        className="flex-1 overflow-y-auto p-4 space-y-4"
+        className="flex-1 overflow-y-auto p-4 space-y-1"
       >
         {messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center">
@@ -293,7 +306,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ matchId, user, currentUs
               return (
                 <div
                   key={message.id}
-                  className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'} gap-2`}
+                  className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'} gap-2 ${showAvatar ? 'mt-3' : 'mt-0.5'}`}
                 >
                   {!isOwnMessage && showAvatar && (
                     <div className="w-8 h-8 rounded-full bg-gradient-to-br from-pink-400 to-purple-500 flex items-center justify-center text-white text-sm font-bold overflow-hidden flex-shrink-0">
@@ -337,7 +350,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ matchId, user, currentUs
             
             {/* Typing indicator */}
             {isTyping && (
-              <div className="flex justify-start gap-2">
+              <div className="flex justify-start gap-2 mt-3">
                 <div className="w-8 h-8 rounded-full bg-gradient-to-br from-pink-400 to-purple-500 flex items-center justify-center text-white text-sm font-bold overflow-hidden flex-shrink-0">
                   {user.profileImage ? (
                     <img src={user.profileImage} alt={user.displayName} className="w-full h-full object-cover" />

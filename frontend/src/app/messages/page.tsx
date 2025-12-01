@@ -43,9 +43,9 @@ const MessagesPageContent: React.FC = () => {
   };
 
   return (
-    <div className="flex h-screen bg-gray-100">
+    <div className="fixed inset-0 flex bg-gray-100">
       {/* Sidebar - Chat List */}
-      <div className="w-full md:w-96 flex-shrink-0">
+      <div className="w-full md:w-96 flex-shrink-0 h-full">
         <ChatList 
           onSelectChat={handleSelectChat} 
           selectedMatchId={selectedMatchId}
@@ -53,7 +53,7 @@ const MessagesPageContent: React.FC = () => {
       </div>
 
       {/* Main Content - Chat Window */}
-      <div className="flex-1 hidden md:flex">
+      <div className="flex-1 hidden md:flex h-full">
         {selectedMatchId && selectedUser ? (
           <ChatWindow 
             matchId={selectedMatchId} 
