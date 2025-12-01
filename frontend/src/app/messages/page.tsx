@@ -34,29 +34,38 @@ export default function MessagesPage() {
       return;
     }
     
+    console.log('🎬 Messages page mounted, initializing socket...');
+    
     // Initialize Socket.IO connection
     const socket = initializeSocket(token);
     
     // Monitor socket connection status
-    socket.on('connect', () => {
+    const handleConnect = () => {
       console.log('✅ Socket connected in messages page');
       setSocketConnected(true);
       // Rejoin match room if we were in one
       if (selectedMatch) {
         joinMatch(selectedMatch.id);
       }
-    });
+    };
 
-    socket.on('disconnect', () => {
+    const handleDisconnect = () => {
       console.log('❌ Socket disconnected in messages page');
       setSocketConnected(false);
-    });
+    };
+
+    socket.on('connect', handleConnect);
+    socket.on('disconnect', handleDisconnect);
+    
+    // Set initial connection state
+    setSocketConnected(socket.connected);
     
     // Get current user ID
     const fetchUserData = async () => {
       try {
         const userData = await api.getMe();
         setCurrentUserId(userData.user.id);
+        console.log('👤 Current user:', userData.user.displayName, userData.user.id);
       } catch (error) {
         console.error('Error fetching user data:', error);
       }
@@ -65,37 +74,16 @@ export default function MessagesPage() {
     fetchUserData();
     loadMatches();
     
-    // Listen for new messages
-    onNewMessage((data) => {
-      if (data.matchId === selectedMatch?.id) {
-        setMessages(prev => [...prev, data.message]);
-      }
-    });
-    
-    // Listen for typing indicators
-    onUserTyping((data) => {
-      if (data.matchId === selectedMatch?.id && data.userId !== currentUserId) {
-        setOtherUserTyping(true);
-        setTypingUser(data.displayName || 'Someone');
-      }
-    });
-    
-    onUserStopTyping((data) => {
-      if (data.matchId === selectedMatch?.id && data.userId !== currentUserId) {
-        setOtherUserTyping(false);
-        setTypingUser('');
-      }
-    });
-    
     // Cleanup on unmount
     return () => {
-      offNewMessage();
-      offTypingEvents();
+      console.log('🧹 Messages page unmounting, cleaning up...');
+      socket.off('connect', handleConnect);
+      socket.off('disconnect', handleDisconnect);
       if (selectedMatch) {
         leaveMatch(selectedMatch.id);
       }
     };
-  }, [router, selectedMatch?.id]);
+  }, [router]);
 
   useEffect(() => {
     if (matchId && matches.length > 0) {
@@ -108,6 +96,52 @@ export default function MessagesPage() {
       }
     }
   }, [matchId, matches]);
+
+  // Setup message and typing listeners when match is selected
+  useEffect(() => {
+    if (!selectedMatch || !currentUserId) return;
+
+    console.log('👂 Setting up listeners for match:', selectedMatch.id);
+
+    // Listen for new messages
+    const handleNewMessage = (data: any) => {
+      console.log('📨 Received new_message event:', data);
+      if (data.matchId === selectedMatch.id) {
+        console.log('✅ Message is for current match, adding to messages');
+        setMessages(prev => [...prev, data.message]);
+      } else {
+        console.log('⏭️ Message is for different match, ignoring');
+      }
+    };
+
+    // Listen for typing indicators
+    const handleUserTyping = (data: any) => {
+      console.log('⌨️ User typing:', data);
+      if (data.matchId === selectedMatch.id && data.userId !== currentUserId) {
+        setOtherUserTyping(true);
+        setTypingUser(data.displayName || 'Someone');
+      }
+    };
+
+    const handleUserStopTyping = (data: any) => {
+      console.log('⌨️ User stopped typing:', data);
+      if (data.matchId === selectedMatch.id && data.userId !== currentUserId) {
+        setOtherUserTyping(false);
+        setTypingUser('');
+      }
+    };
+
+    onNewMessage(handleNewMessage);
+    onUserTyping(handleUserTyping);
+    onUserStopTyping(handleUserStopTyping);
+
+    // Cleanup
+    return () => {
+      console.log('🧹 Cleaning up listeners for match:', selectedMatch.id);
+      offNewMessage();
+      offTypingEvents();
+    };
+  }, [selectedMatch?.id, currentUserId]);
 
   const loadMatches = async () => {
     try {
@@ -153,22 +187,36 @@ export default function MessagesPage() {
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newMessage.trim() || !selectedMatch) return;
+    if (!newMessage.trim() || !selectedMatch || !socketConnected) {
+      if (!socketConnected) {
+        alert('Not connected to chat server. Please wait...');
+      }
+      return;
+    }
 
-    setSending(true);
+    console.log('💬 Sending message:', newMessage);
+    
     const messageContent = newMessage;
     setNewMessage(''); // Clear input immediately for better UX
+    setSending(true);
     
     try {
       // Send via Socket.IO for real-time delivery
-      sendMessage(selectedMatch.id, messageContent);
+      const sent = sendMessage(selectedMatch.id, messageContent);
+      
+      if (!sent) {
+        console.error('❌ Failed to send message via socket');
+        setNewMessage(messageContent); // Restore message
+        alert('Failed to send message. Please check your connection.');
+      } else {
+        console.log('✅ Message sent via socket');
+      }
       
       // Auto-scroll after sending message
       setTimeout(scrollToBottom, 150);
     } catch (error) {
       console.error('Error sending message:', error);
-      // Restore message content on error
-      setNewMessage(messageContent);
+      setNewMessage(messageContent); // Restore message
       alert('Failed to send message');
     } finally {
       setSending(false);
