@@ -3,13 +3,14 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getOnlineUsers = exports.initializeMessagingServer = void 0;
+exports.getOnlineUsers = exports.getIO = exports.initializeMessagingServer = void 0;
 const socket_io_1 = require("socket.io");
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const client_1 = require("@prisma/client");
 const prisma = new client_1.PrismaClient();
 // In-memory storage for online users (use Redis in production for scaling)
 const onlineUsers = new Map();
+let ioServer = null;
 const initializeMessagingServer = (httpServer) => {
     const io = new socket_io_1.Server(httpServer, {
         cors: {
@@ -244,9 +245,12 @@ const initializeMessagingServer = (httpServer) => {
         });
     });
     console.log('Messaging server initialized');
+    ioServer = io;
     return io;
 };
 exports.initializeMessagingServer = initializeMessagingServer;
+const getIO = () => ioServer;
+exports.getIO = getIO;
 const getOnlineUsers = () => {
     return Array.from(onlineUsers.keys());
 };

@@ -19,6 +19,7 @@ import adminRoutes from './routes/admin';
 import notificationRoutes from './routes/notifications';
 import photosRoutes from './routes/photos';
 import messagesRoutes from './routes/messages';
+import chatRoutes from './routes/chat';
 import { initializeMessagingServer } from './messaging/messagingServer';
 
 // Load environment variables
@@ -134,6 +135,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/photos', photosRoutes);
 app.use('/api/messages', messagesRoutes);
+app.use('/api/chat', chatRoutes);
 
 // Initialize messaging server (Socket.IO)
 initializeMessagingServer(server);

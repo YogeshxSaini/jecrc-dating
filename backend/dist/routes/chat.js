@@ -1,98 +1,90 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
-const index_1 = require("../index");
-const errorHandler_1 = require("../middleware/errorHandler");
+const client_1 = require("@prisma/client");
 const auth_1 = require("../middleware/auth");
+const errorHandler_1 = require("../middleware/errorHandler");
+const messagingServer_1 = require("../messaging/messagingServer");
 const router = (0, express_1.Router)();
-/**
- * GET /api/chat/:matchId/messages
- * Get messages for a match
- */
+const prisma = new client_1.PrismaClient();
+// GET /api/chat/:matchId/messages?limit=50&offset=0
 router.get('/:matchId/messages', auth_1.authenticate, (0, errorHandler_1.asyncHandler)(async (req, res) => {
+    const userId = req.user.id;
     const { matchId } = req.params;
-    const limit = parseInt(req.query.limit) || 50;
-    const offset = parseInt(req.query.offset) || 0;
-    // Verify user is part of this match
-    const match = await index_1.prisma.match.findFirst({
+    const limit = parseInt(req.query.limit || '50');
+    const offset = parseInt(req.query.offset || '0');
+    // Verify user is in match
+    const match = await prisma.match.findFirst({
         where: {
             id: matchId,
-            OR: [
-                { userAId: req.user.id },
-                { userBId: req.user.id },
-            ],
+            OR: [{ userAId: userId }, { userBId: userId }],
         },
     });
     if (!match) {
-        throw new errorHandler_1.AppError('Match not found', 404);
+        return res.status(404).json({ success: false, error: 'Match not found or unauthorized' });
     }
-    // Get messages
-    const messages = await index_1.prisma.message.findMany({
+    // Fetch messages with pagination (offset-based)
+    const messages = await prisma.message.findMany({
         where: { matchId },
         include: {
             sender: {
                 select: {
                     id: true,
                     displayName: true,
+                    profile: {
+                        select: {
+                            photos: {
+                                where: { isProfilePic: true },
+                                select: { url: true },
+                                take: 1,
+                            },
+                        },
+                    },
                 },
             },
         },
-        orderBy: {
-            createdAt: 'desc',
-        },
+        orderBy: { createdAt: 'desc' },
         skip: offset,
         take: limit,
     });
-    // Mark messages as read
-    await index_1.prisma.message.updateMany({
-        where: {
-            matchId,
-            senderId: {
-                not: req.user.id,
-            },
-            readAt: null,
+    // Reverse to chronological order
+    messages.reverse();
+    const formatted = messages.map((msg) => ({
+        id: msg.id,
+        matchId: msg.matchId,
+        senderId: msg.senderId,
+        content: msg.content,
+        readAt: msg.readAt,
+        createdAt: msg.createdAt,
+        sender: {
+            id: msg.sender.id,
+            displayName: msg.sender.displayName,
+            profileImage: msg.sender.profile?.photos[0]?.url || null,
         },
-        data: {
-            readAt: new Date(),
-        },
-    });
-    res.json({
-        success: true,
-        messages: messages.reverse(), // Return in chronological order
-        hasMore: messages.length === limit,
-    });
+    }));
+    res.json({ success: true, messages: formatted, hasMore: messages.length === limit });
 }));
-/**
- * POST /api/chat/:matchId/messages
- * Send a message (also handled via Socket.IO, but this is REST fallback)
- */
+// POST /api/chat/:matchId/messages
 router.post('/:matchId/messages', auth_1.authenticate, (0, errorHandler_1.asyncHandler)(async (req, res) => {
+    const userId = req.user.id;
     const { matchId } = req.params;
     const { content } = req.body;
-    if (!content || content.trim().length === 0) {
-        throw new errorHandler_1.AppError('Message content is required', 400);
+    if (!content || typeof content !== 'string' || !content.trim()) {
+        return res.status(400).json({ success: false, error: 'Message content required' });
     }
-    if (content.length > 2000) {
-        throw new errorHandler_1.AppError('Message is too long (max 2000 characters)', 400);
-    }
-    // Verify match exists and user is part of it
-    const match = await index_1.prisma.match.findFirst({
+    const match = await prisma.match.findFirst({
         where: {
             id: matchId,
-            OR: [
-                { userAId: req.user.id },
-                { userBId: req.user.id },
-            ],
+            OR: [{ userAId: userId }, { userBId: userId }],
         },
     });
     if (!match) {
-        throw new errorHandler_1.AppError('Match not found', 404);
+        return res.status(404).json({ success: false, error: 'Match not found or unauthorized' });
     }
-    // Create message
-    const message = await index_1.prisma.message.create({
+    const message = await prisma.message.create({
         data: {
             matchId,
-            senderId: req.user.id,
+            senderId: userId,
             content: content.trim(),
         },
         include: {
@@ -100,36 +92,26 @@ router.post('/:matchId/messages', auth_1.authenticate, (0, errorHandler_1.asyncH
                 select: {
                     id: true,
                     displayName: true,
+                    profile: {
+                        select: {
+                            photos: {
+                                where: { isProfilePic: true },
+                                select: { url: true },
+                                take: 1,
+                            },
+                        },
+                    },
                 },
             },
         },
     });
-    // Create notification for other user
-    const otherUserId = match.userAId === req.user.id ? match.userBId : match.userAId;
-    await index_1.prisma.notification.create({
-        data: {
-            userId: otherUserId,
-            type: 'NEW_MESSAGE',
-            title: 'New message',
-            message: `${req.user.email.split('@')[0]} sent you a message`,
-            data: { matchId, messageId: message.id },
-        },
-    });
-    res.json({
-        success: true,
-        message,
-    });
-}));
-/**
- * GET /api/chat/:matchId/typing
- * Get typing status (in production, use Socket.IO for real-time)
- */
-router.get('/:matchId/typing', auth_1.authenticate, (0, errorHandler_1.asyncHandler)(async (req, res) => {
-    // This is a placeholder - typing indicators are handled via Socket.IO
-    res.json({
-        success: true,
-        typing: false,
-    });
+    // Emit to recipient (if socket server available)
+    const recipientId = match.userAId === userId ? match.userBId : match.userAId;
+    const io = (0, messagingServer_1.getIO)();
+    if (io) {
+        io.to(`user_${recipientId}`).emit('new_message', message);
+    }
+    res.status(201).json({ success: true, message });
 }));
 exports.default = router;
 //# sourceMappingURL=chat.js.map

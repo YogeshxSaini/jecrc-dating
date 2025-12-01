@@ -18,6 +18,8 @@ interface SocketUser {
 // In-memory storage for online users (use Redis in production for scaling)
 const onlineUsers = new Map<string, SocketUser>();
 
+let ioServer: SocketIOServer | null = null;
+
 export const initializeMessagingServer = (httpServer: HTTPServer) => {
   const io = new SocketIOServer(httpServer, {
     cors: {
@@ -281,8 +283,11 @@ export const initializeMessagingServer = (httpServer: HTTPServer) => {
   });
 
   console.log('Messaging server initialized');
+  ioServer = io;
   return io;
 };
+
+export const getIO = (): SocketIOServer | null => ioServer;
 
 export const getOnlineUsers = (): string[] => {
   return Array.from(onlineUsers.keys());

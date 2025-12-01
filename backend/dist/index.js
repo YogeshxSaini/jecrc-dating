@@ -24,6 +24,7 @@ const admin_1 = __importDefault(require("./routes/admin"));
 const notifications_1 = __importDefault(require("./routes/notifications"));
 const photos_1 = __importDefault(require("./routes/photos"));
 const messages_1 = __importDefault(require("./routes/messages"));
+const chat_1 = __importDefault(require("./routes/chat"));
 const messagingServer_1 = require("./messaging/messagingServer");
 // Load environment variables
 dotenv_1.default.config();
@@ -130,6 +131,7 @@ app.use('/api/admin', admin_1.default);
 app.use('/api/notifications', notifications_1.default);
 app.use('/api/photos', photos_1.default);
 app.use('/api/messages', messages_1.default);
+app.use('/api/chat', chat_1.default);
 // Initialize messaging server (Socket.IO)
 (0, messagingServer_1.initializeMessagingServer)(server);
 // 404 handler
