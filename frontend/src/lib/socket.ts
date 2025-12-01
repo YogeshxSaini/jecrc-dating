@@ -5,13 +5,18 @@ let socket: Socket | null = null;
 export const initializeSocket = (token: string): Socket => {
   const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:4000';
   
+  console.log('🚀 initializeSocket called');
+  console.log('   URL:', SOCKET_URL);
+  console.log('   Token:', token ? `${token.substring(0, 20)}...` : 'MISSING');
+  console.log('   Existing socket:', socket ? 'exists' : 'null');
+  console.log('   Connected:', socket?.connected || false);
+  
   if (socket && socket.connected) {
     console.log('♻️ Reusing existing socket connection');
     return socket;
   }
 
-  console.log('🔌 Initializing socket connection to:', SOCKET_URL);
-  console.log('🔑 Using token:', token ? 'Present' : 'Missing');
+  console.log('🔌 Creating new socket connection...');
 
   socket = io(SOCKET_URL, {
     path: '/socket.io/',
@@ -33,6 +38,7 @@ export const initializeSocket = (token: string): Socket => {
   socket.on('connect', () => {
     console.log('✅ Socket connected:', socket?.id);
     console.log('   Transport:', socket?.io.engine.transport.name);
+    console.log('   Server:', SOCKET_URL);
   });
 
   socket.on('disconnect', (reason) => {
@@ -56,6 +62,7 @@ export const initializeSocket = (token: string): Socket => {
     console.error('❌ Socket connection error:', error.message);
     console.log('   Attempting with URL:', SOCKET_URL);
     console.log('   Transport:', socket?.io.engine?.transport?.name || 'unknown');
+    console.log('   Error details:', error);
   });
 
   socket.on('error', (error) => {
