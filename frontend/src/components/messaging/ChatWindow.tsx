@@ -4,7 +4,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useMessaging } from '@/contexts/MessagingContext';
 import { MessageInput } from './MessageInput';
 
-interface Message {
+interface ChatMessage {
   id: string;
   matchId: string;
   senderId: string;
@@ -33,7 +33,7 @@ interface ChatWindowProps {
 }
 
 export const ChatWindow: React.FC<ChatWindowProps> = ({ matchId, user, currentUserId }) => {
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(false);
@@ -59,10 +59,25 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ matchId, user, currentUs
   useEffect(() => {
     const unsubscribe = addMessageListener((message) => {
       if (message.matchId === matchId) {
-        setMessages((prev) => {
+        setMessages((prev): ChatMessage[] => {
           // Avoid duplicates
           if (prev.find((m) => m.id === message.id)) return prev;
-          return [...prev, message];
+          return [
+            ...prev,
+            {
+              id: message.id,
+              matchId: message.matchId,
+              senderId: message.senderId,
+              content: message.content,
+              readAt: message.readAt,
+              createdAt: message.createdAt,
+              sender: {
+                id: message.sender?.id || message.senderId,
+                displayName: (message as any).sender?.displayName || (message as any).sender?.name || 'User',
+                profileImage: message.sender?.profileImage ?? null,
+              },
+            },
+          ];
         });
         
         // Mark as read when new message arrives
@@ -96,7 +111,21 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ matchId, user, currentUs
       const data = await response.json();
 
       if (data.success) {
-        setMessages(data.messages);
+        const mapped: ChatMessage[] = data.messages.map((m: any) => ({
+          id: m.id,
+          matchId: m.matchId,
+          senderId: m.senderId,
+          content: m.content,
+          readAt: m.readAt,
+          createdAt: m.createdAt,
+          sender: {
+            id: m.sender.id,
+            displayName: m.sender.displayName,
+            profileImage: m.sender.profileImage ?? null,
+          },
+        }));
+
+        setMessages(mapped);
         setHasMore(data.hasMore);
       } else {
         setError(data.error || 'Failed to fetch messages');

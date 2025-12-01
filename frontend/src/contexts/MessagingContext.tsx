@@ -83,7 +83,10 @@ export const MessagingProvider: React.FC<MessagingProviderProps> = ({ children }
       return;
     }
 
-    const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+    const backendUrl =
+      typeof window !== 'undefined' && window.location.hostname === 'localhost'
+        ? 'http://localhost:3001'
+        : process.env.NEXT_PUBLIC_API_URL || 'https://jecrc-dating-backend.onrender.com';
     
     console.log('Initializing socket connection to:', backendUrl);
     setConnectionStatus('connecting');
