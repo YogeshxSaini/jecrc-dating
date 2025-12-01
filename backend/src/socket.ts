@@ -8,12 +8,16 @@ interface AuthenticatedSocket extends Socket {
 }
 
 export const initializeSocketIO = (io: SocketIOServer) => {
+  console.log('🔌 Initializing Socket.IO server...');
+  
   // Middleware for authentication
   io.use(async (socket: any, next) => {
     try {
+      console.log('🔐 Socket authentication attempt...');
       const token = socket.handshake.auth.token || socket.handshake.headers.authorization?.split(' ')[1];
       
       if (!token) {
+        console.error('❌ No token provided');
         return next(new Error('Authentication token required'));
       }
 
@@ -29,15 +33,17 @@ export const initializeSocketIO = (io: SocketIOServer) => {
       });
 
       if (!user || !user.isActive) {
+        console.error('❌ Invalid or inactive user:', decoded.id);
         return next(new Error('Invalid or inactive user'));
       }
 
       socket.userId = user.id;
       socket.user = user;
+      console.log('✅ Socket authenticated:', user.displayName, '(', user.id, ')');
       next();
-    } catch (error) {
-      console.error('Socket authentication error:', error);
-      next(new Error('Authentication failed'));
+    } catch (error: any) {
+      console.error('❌ Socket authentication error:', error.message);
+      next(new Error('Authentication failed: ' + error.message));
     }
   });
 

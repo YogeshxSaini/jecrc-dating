@@ -13,21 +13,25 @@ export const initializeSocket = (token: string): Socket => {
     auth: {
       token: token,
     },
-    transports: ['websocket', 'polling'],
+    transports: ['polling', 'websocket'], // Try polling first for better compatibility
     reconnection: true,
     reconnectionAttempts: Infinity,
     reconnectionDelay: 1000,
     reconnectionDelayMax: 5000,
-    timeout: 20000,
+    timeout: 60000, // Increase timeout to 60 seconds
     autoConnect: true,
+    forceNew: false,
+    upgrade: true, // Allow upgrade from polling to websocket
   });
 
   socket.on('connect', () => {
     console.log('✅ Socket connected:', socket?.id);
+    console.log('   Transport:', socket?.io.engine.transport.name);
   });
 
   socket.on('disconnect', (reason) => {
     console.log('❌ Socket disconnected:', reason);
+    console.log('   Will attempt to reconnect:', socket?.io.reconnection());
     if (reason === 'io server disconnect') {
       // Server disconnected, try to reconnect
       socket?.connect();
@@ -44,6 +48,8 @@ export const initializeSocket = (token: string): Socket => {
 
   socket.on('connect_error', (error) => {
     console.error('❌ Socket connection error:', error.message);
+    console.log('   Attempting with URL:', SOCKET_URL);
+    console.log('   Transport:', socket?.io.engine?.transport?.name || 'unknown');
   });
 
   socket.on('error', (error) => {

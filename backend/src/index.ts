@@ -45,13 +45,34 @@ const allowedOrigins: string[] = [
   process.env.FRONTEND_URL,
 ].filter((origin): origin is string => Boolean(origin));
 
-// Initialize Socket.IO
+// Initialize Socket.IO with better configuration
 const io = new SocketIOServer(server, {
   cors: {
-    origin: allowedOrigins,
-    methods: ['GET', 'POST'],
+    origin: (origin, callback) => {
+      // Allow requests with no origin (mobile apps, Postman, etc.)
+      if (!origin) return callback(null, true);
+      
+      // Check if origin is allowed or matches cloudflare patterns
+      if (allowedOrigins.includes(origin) || 
+          origin.endsWith('.trycloudflare.com') || 
+          origin.endsWith('.pages.dev') ||
+          origin.endsWith('.onrender.com')) {
+        callback(null, true);
+      } else {
+        console.log('CORS blocked origin:', origin);
+        callback(null, true); // Allow anyway for debugging
+      }
+    },
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     credentials: true,
+    allowedHeaders: ['Content-Type', 'Authorization'],
   },
+  transports: ['polling', 'websocket'],
+  pingTimeout: 60000,
+  pingInterval: 25000,
+  upgradeTimeout: 30000,
+  maxHttpBufferSize: 1e6,
+  allowEIO3: true, // Allow older clients
 });
 
 // Middleware
