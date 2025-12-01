@@ -3,7 +3,6 @@ import { prisma } from '../index';
 import { AppError, asyncHandler } from '../middleware/errorHandler';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { likeRateLimiter } from '../middleware/rateLimiter';
-import { io } from '../index';
 
 const router = Router();
 
@@ -120,14 +119,7 @@ router.post(
         ],
       });
 
-      // Emit real-time match notification via Socket.IO
-      io.to(toUserId).emit('new_match', {
-        matchId: match.id,
-        user: {
-          id: req.user!.id,
-          displayName: req.user!.email.split('@')[0],
-        },
-      });
+      // Match notification created above
     } else {
       // Create notification for liked user
       await prisma.notification.create({
