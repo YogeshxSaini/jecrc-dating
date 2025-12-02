@@ -8,6 +8,7 @@ interface Message {
   matchId: string;
   senderId: string;
   content: string;
+  deliveredAt: string | null;
   readAt: string | null;
   createdAt: string;
   sender?: {
@@ -36,11 +37,13 @@ interface MessagingContextType {
   typingUsers: TypingUser[];
   onlineStatus: OnlineStatus;
   sendMessage: (matchId: string, content: string) => void;
+  markAsDelivered: (matchId: string) => void;
   markAsRead: (matchId: string) => void;
   startTyping: (matchId: string) => void;
   stopTyping: (matchId: string) => void;
   addMessageListener: (callback: (message: Message) => void) => () => void;
   addTypingListener: (callback: (data: TypingUser) => void) => () => void;
+  addDeliveredListener: (callback: (data: { matchId: string; messageId?: string; deliveredAt: string }) => void) => () => void;
   addReadReceiptListener: (callback: (data: { matchId: string; readAt: string }) => void) => () => void;
 }
 
@@ -64,11 +67,12 @@ export const MessagingProvider: React.FC<MessagingProviderProps> = ({ children }
   const [messages, setMessages] = useState<Message[]>([]);
   const [typingUsers, setTypingUsers] = useState<TypingUser[]>([]);
   const [onlineStatus, setOnlineStatus] = useState<OnlineStatus>({});
-  
+
   const reconnectTimeoutRef = useRef<NodeJS.Timeout>();
   const reconnectAttemptsRef = useRef(0);
   const messageListenersRef = useRef<Set<(message: Message) => void>>(new Set());
   const typingListenersRef = useRef<Set<(data: TypingUser) => void>>(new Set());
+  const deliveredListenersRef = useRef<Set<(data: { matchId: string; messageId?: string; deliveredAt: string }) => void>>(new Set());
   const readReceiptListenersRef = useRef<Set<(data: { matchId: string; readAt: string }) => void>>(new Set());
 
   const getBackoffDelay = (attempt: number): number => {
@@ -93,7 +97,7 @@ export const MessagingProvider: React.FC<MessagingProviderProps> = ({ children }
     const backendUrl = isLocalHost
       ? 'http://localhost:4000'
       : process.env.NEXT_PUBLIC_API_URL || 'https://jecrc-dating-backend.onrender.com';
-    
+
     console.log('Initializing socket connection to:', backendUrl);
     setConnectionStatus('connecting');
 
@@ -125,17 +129,17 @@ export const MessagingProvider: React.FC<MessagingProviderProps> = ({ children }
     newSocket.on('connect_error', (error) => {
       console.error('Socket connection error:', error);
       setConnectionStatus('reconnecting');
-      
+
       // Implement custom reconnection with backoff
       reconnectAttemptsRef.current++;
       const delay = getBackoffDelay(reconnectAttemptsRef.current);
-      
+
       console.log(`Reconnecting in ${delay}ms (attempt ${reconnectAttemptsRef.current})`);
-      
+
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current);
       }
-      
+
       reconnectTimeoutRef.current = setTimeout(() => {
         if (newSocket.disconnected) {
           console.log('Attempting reconnection...');
@@ -148,14 +152,30 @@ export const MessagingProvider: React.FC<MessagingProviderProps> = ({ children }
     newSocket.on('new_message', (message: Message) => {
       console.log('Received new message:', message);
       setMessages((prev) => [...prev, message]);
-      
+
       // Notify all listeners
       messageListenersRef.current.forEach((listener) => listener(message));
     });
 
+    newSocket.on('message_delivered', (data: { matchId: string; messageId?: string; deliveredAt: string }) => {
+      console.log('Message delivered:', data);
+
+      // Update messages
+      setMessages((prev) =>
+        prev.map((msg) =>
+          (data.messageId ? msg.id === data.messageId : msg.matchId === data.matchId && !msg.deliveredAt)
+            ? { ...msg, deliveredAt: data.deliveredAt }
+            : msg
+        )
+      );
+
+      // Notify listeners
+      deliveredListenersRef.current.forEach((listener) => listener(data));
+    });
+
     newSocket.on('message_read', (data: { matchId: string; readAt: string }) => {
       console.log('Message read:', data);
-      
+
       // Update messages
       setMessages((prev) =>
         prev.map((msg) =>
@@ -164,7 +184,7 @@ export const MessagingProvider: React.FC<MessagingProviderProps> = ({ children }
             : msg
         )
       );
-      
+
       // Notify listeners
       readReceiptListenersRef.current.forEach((listener) => listener(data));
     });
@@ -177,7 +197,7 @@ export const MessagingProvider: React.FC<MessagingProviderProps> = ({ children }
         if (exists) return prev;
         return [...prev, data];
       });
-      
+
       typingListenersRef.current.forEach((listener) => listener(data));
     });
 
@@ -212,7 +232,7 @@ export const MessagingProvider: React.FC<MessagingProviderProps> = ({ children }
 
   useEffect(() => {
     const cleanup = connectSocket();
-    
+
     // Listen for token refresh events
     const handleTokenRefresh = () => {
       console.log('Token refreshed, reconnecting socket...');
@@ -222,10 +242,10 @@ export const MessagingProvider: React.FC<MessagingProviderProps> = ({ children }
       }
       connectSocket();
     };
-    
+
     // Listen for storage events (token updates)
     window.addEventListener('tokenRefreshed', handleTokenRefresh);
-    
+
     return () => {
       cleanup?.();
       window.removeEventListener('tokenRefreshed', handleTokenRefresh);
@@ -246,6 +266,15 @@ export const MessagingProvider: React.FC<MessagingProviderProps> = ({ children }
         console.log('Message sent successfully:', response);
       }
     });
+  }, [socket]);
+
+  const markAsDelivered = useCallback((matchId: string) => {
+    if (!socket || !socket.connected) {
+      console.error('Socket not connected, cannot mark as delivered');
+      return;
+    }
+
+    socket.emit('mark_as_delivered', { matchId });
   }, [socket]);
 
   const markAsRead = useCallback((matchId: string) => {
@@ -281,6 +310,13 @@ export const MessagingProvider: React.FC<MessagingProviderProps> = ({ children }
     };
   }, []);
 
+  const addDeliveredListener = useCallback((callback: (data: { matchId: string; messageId?: string; deliveredAt: string }) => void) => {
+    deliveredListenersRef.current.add(callback);
+    return () => {
+      deliveredListenersRef.current.delete(callback);
+    };
+  }, []);
+
   const addReadReceiptListener = useCallback((callback: (data: { matchId: string; readAt: string }) => void) => {
     readReceiptListenersRef.current.add(callback);
     return () => {
@@ -295,11 +331,13 @@ export const MessagingProvider: React.FC<MessagingProviderProps> = ({ children }
     typingUsers,
     onlineStatus,
     sendMessage,
+    markAsDelivered,
     markAsRead,
     startTyping,
     stopTyping,
     addMessageListener,
     addTypingListener,
+    addDeliveredListener,
     addReadReceiptListener,
   };
 

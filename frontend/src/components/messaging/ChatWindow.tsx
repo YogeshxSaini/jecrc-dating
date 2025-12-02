@@ -3,12 +3,14 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useMessaging } from '@/contexts/MessagingContext';
 import { MessageInput } from './MessageInput';
+import { MessageStatus } from './MessageStatus';
 
 interface ChatMessage {
   id: string;
   matchId: string;
   senderId: string;
   content: string;
+  deliveredAt: string | null;
   readAt: string | null;
   createdAt: string;
   sender: {
@@ -39,19 +41,21 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ matchId, user, currentUs
   const [hasMore, setHasMore] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
-  
-  const { 
-    sendMessage, 
-    markAsRead, 
-    addMessageListener, 
+
+  const {
+    sendMessage,
+    markAsDelivered,
+    markAsRead,
+    addMessageListener,
     addTypingListener,
     typingUsers,
-    onlineStatus 
+    onlineStatus
   } = useMessaging();
 
   // Fetch initial messages
   useEffect(() => {
     fetchMessages();
+    markAsDelivered(matchId);
     markAsRead(matchId);
   }, [matchId]);
 
@@ -62,12 +66,12 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ matchId, user, currentUs
         setMessages((prev): ChatMessage[] => {
           // Avoid duplicates
           if (prev.find((m) => m.id === message.id)) return prev;
-          
+
           // Use the user prop for the other user's profile image
-          const senderProfileImage = message.senderId === user.id 
-            ? user.profileImage 
+          const senderProfileImage = message.senderId === user.id
+            ? user.profileImage
             : message.sender?.profileImage ?? null;
-          
+
           return [
             ...prev,
             {
@@ -75,6 +79,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ matchId, user, currentUs
               matchId: message.matchId,
               senderId: message.senderId,
               content: message.content,
+              deliveredAt: message.deliveredAt,
               readAt: message.readAt,
               createdAt: message.createdAt,
               sender: {
@@ -85,7 +90,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ matchId, user, currentUs
             },
           ];
         });
-        
+
         // Only mark as read if message is from the other user (not from current user)
         if (message.senderId === user.id) {
           setTimeout(() => markAsRead(matchId), 100);
@@ -100,7 +105,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ matchId, user, currentUs
     try {
       setLoading(true);
       setError(null);
-      
+
       const token = localStorage.getItem('accessToken');
       const isLocalHost = (
         typeof window !== 'undefined' &&
@@ -126,6 +131,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ matchId, user, currentUs
           matchId: m.matchId,
           senderId: m.senderId,
           content: m.content,
+          deliveredAt: m.deliveredAt,
           readAt: m.readAt,
           createdAt: m.createdAt,
           sender: {
@@ -168,11 +174,11 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ matchId, user, currentUs
     } else if (diffDays === 1) {
       return 'Yesterday ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     } else if (diffDays < 7) {
-      return date.toLocaleDateString([], { weekday: 'short' }) + ' ' + 
-             date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      return date.toLocaleDateString([], { weekday: 'short' }) + ' ' +
+        date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     } else {
       return date.toLocaleDateString([], { month: 'short', day: 'numeric' }) + ' ' +
-             date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     }
   };
 
@@ -207,7 +213,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ matchId, user, currentUs
             )}
           </div>
         </div>
-        
+
         {/* Loading */}
         <div className="flex-1 flex items-center justify-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-pink-500"></div>
@@ -234,7 +240,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ matchId, user, currentUs
             <h2 className="font-semibold text-gray-900">{user.displayName}</h2>
           </div>
         </div>
-        
+
         {/* Error */}
         <div className="flex-1 flex flex-col items-center justify-center p-4">
           <p className="text-red-500 text-center">{error}</p>
@@ -284,7 +290,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ matchId, user, currentUs
       </div>
 
       {/* Messages */}
-      <div 
+      <div
         ref={messagesContainerRef}
         className="flex-1 overflow-y-auto p-4 space-y-1"
       >
@@ -302,7 +308,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ matchId, user, currentUs
           <>
             {messages.map((message, index) => {
               const isOwnMessage = message.senderId === currentUserId;
-              const showAvatar = index === 0 || 
+              const showAvatar = index === 0 ||
                 messages[index - 1].senderId !== message.senderId;
 
               return (
@@ -313,10 +319,10 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ matchId, user, currentUs
                   {!isOwnMessage && showAvatar && (
                     <div className="w-8 h-8 rounded-full bg-gradient-to-br from-pink-400 to-purple-500 flex items-center justify-center text-white text-sm font-bold overflow-hidden flex-shrink-0">
                       {message.sender.profileImage ? (
-                        <img 
-                          src={message.sender.profileImage} 
-                          alt={message.sender.displayName} 
-                          className="w-full h-full object-cover" 
+                        <img
+                          src={message.sender.profileImage}
+                          alt={message.sender.displayName}
+                          className="w-full h-full object-cover"
                         />
                       ) : (
                         message.sender.displayName.charAt(0).toUpperCase()
@@ -324,14 +330,13 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ matchId, user, currentUs
                     </div>
                   )}
                   {!isOwnMessage && !showAvatar && <div className="w-8" />}
-                  
+
                   <div className={`max-w-[70%] ${isOwnMessage ? 'items-end' : 'items-start'}`}>
                     <div
-                      className={`rounded-2xl px-4 py-2 ${
-                        isOwnMessage
-                          ? 'bg-gradient-to-br from-pink-500 to-purple-500 text-white'
-                          : 'bg-white text-gray-900'
-                      }`}
+                      className={`rounded-2xl px-4 py-2 ${isOwnMessage
+                        ? 'bg-gradient-to-br from-pink-500 to-purple-500 text-white'
+                        : 'bg-white text-gray-900'
+                        }`}
                     >
                       <p className="text-sm whitespace-pre-wrap break-words">
                         {message.content}
@@ -341,15 +346,23 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ matchId, user, currentUs
                       <span className="text-xs text-gray-500">
                         {formatMessageTime(message.createdAt)}
                       </span>
-                      {isOwnMessage && message.readAt && (
-                        <span className="text-xs text-blue-500">✓✓</span>
+                      {isOwnMessage && message.deliveredAt && !message.readAt && (
+                        <span className="text-xs text-gray-400" title={`Delivered at ${formatMessageTime(message.deliveredAt)}`}>
+                          • Delivered
+                        </span>
                       )}
+                      <MessageStatus
+                        isOwnMessage={isOwnMessage}
+                        deliveredAt={message.deliveredAt}
+                        readAt={message.readAt}
+                        createdAt={message.createdAt}
+                      />
                     </div>
                   </div>
                 </div>
               );
             })}
-            
+
             {/* Typing indicator */}
             {isTyping && (
               <div className="flex justify-start gap-2 mt-3">
@@ -369,7 +382,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ matchId, user, currentUs
                 </div>
               </div>
             )}
-            
+
             <div ref={messagesEndRef} />
           </>
         )}

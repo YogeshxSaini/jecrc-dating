@@ -72,7 +72,7 @@ export const initializeMessagingServer = (httpServer: HTTPServer) => {
           tokenStartsWithBearer: raw ? raw.startsWith('Bearer ') : false,
           origin: (socket.handshake.headers && socket.handshake.headers.origin) || 'unknown',
         });
-      } catch {}
+      } catch { }
       next(new Error('Authentication failed'));
     }
   });
@@ -183,19 +183,93 @@ export const initializeMessagingServer = (httpServer: HTTPServer) => {
         // Determine recipient
         const recipientId = match.userAId === userId ? match.userBId : match.userAId;
 
+        // Check if recipient is online
+        const recipientOnline = onlineUsers.has(recipientId);
+
+        // If recipient is online, mark as delivered immediately
+        let updatedMessage = message;
+        if (recipientOnline) {
+          const deliveredAt = new Date();
+          updatedMessage = await prisma.message.update({
+            where: { id: message.id },
+            data: { deliveredAt },
+            include: {
+              sender: {
+                select: {
+                  id: true,
+                  displayName: true,
+                },
+              },
+            },
+          });
+        }
+
         // Send message to recipient
-        io.to(`user_${recipientId}`).emit('new_message', message);
-        
+        io.to(`user_${recipientId}`).emit('new_message', updatedMessage);
+
         // Also send to sender so they see their own message
-        io.to(`user_${userId}`).emit('new_message', message);
+        io.to(`user_${userId}`).emit('new_message', updatedMessage);
+
+        // If delivered, notify sender
+        if (recipientOnline) {
+          io.to(`user_${userId}`).emit('message_delivered', {
+            messageId: updatedMessage.id,
+            matchId,
+            deliveredAt: updatedMessage.deliveredAt?.toISOString(),
+          });
+        }
 
         // Send confirmation back to sender
-        callback?.({ success: true, message });
+        callback?.({ success: true, message: updatedMessage });
 
-        console.log(`Message sent successfully: ${message.id}`);
+        console.log(`Message sent successfully: ${updatedMessage.id}`);
       } catch (error) {
         console.error('Error sending message:', error);
         callback?.({ error: 'Failed to send message' });
+      }
+    });
+
+    // Handle marking messages as delivered
+    socket.on('mark_as_delivered', async (data: { matchId: string }) => {
+      try {
+        console.log(`User ${userId} marking messages as delivered in match ${data.matchId}`);
+
+        // Verify match exists
+        const match = await prisma.match.findFirst({
+          where: {
+            id: data.matchId,
+            OR: [{ userAId: userId }, { userBId: userId }],
+          },
+        });
+
+        if (!match) {
+          console.error('Match not found or unauthorized');
+          return;
+        }
+
+        // Mark all undelivered messages from the other user as delivered
+        const deliveredAt = new Date();
+        await prisma.message.updateMany({
+          where: {
+            matchId: data.matchId,
+            senderId: { not: userId },
+            deliveredAt: null,
+          },
+          data: { deliveredAt },
+        });
+
+        // Determine the other user
+        const otherUserId = match.userAId === userId ? match.userBId : match.userAId;
+
+        // Notify sender that messages were delivered
+        io.to(`user_${otherUserId}`).emit('message_delivered', {
+          matchId: data.matchId,
+          deliveredAt: deliveredAt.toISOString(),
+        });
+
+        console.log(`Messages marked as delivered in match ${data.matchId}`);
+      } catch (error) {
+        console.error('Error marking messages as delivered:', error);
       }
     });
 
@@ -218,14 +292,18 @@ export const initializeMessagingServer = (httpServer: HTTPServer) => {
         }
 
         // Mark all unread messages from the other user as read
-        const readAt = new Date();
+        // Also ensure they're marked as delivered if not already
+        const now = new Date();
         await prisma.message.updateMany({
           where: {
             matchId: data.matchId,
             senderId: { not: userId },
             readAt: null,
           },
-          data: { readAt },
+          data: {
+            readAt: now,
+            deliveredAt: now, // Ensure delivered if not already
+          },
         });
 
         // Determine the other user
@@ -234,7 +312,7 @@ export const initializeMessagingServer = (httpServer: HTTPServer) => {
         // Notify sender that messages were read
         io.to(`user_${otherUserId}`).emit('message_read', {
           matchId: data.matchId,
-          readAt: readAt.toISOString(),
+          readAt: now.toISOString(),
         });
 
         console.log(`Messages marked as read in match ${data.matchId}`);
