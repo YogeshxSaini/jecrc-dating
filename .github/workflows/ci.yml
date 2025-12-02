@@ -11,6 +11,11 @@ jobs:
   backend:
     name: Backend Tests & Build
     runs-on: ubuntu-latest
+    # Only run if backend files changed
+    if: |
+      github.event_name == 'pull_request' ||
+      contains(github.event.head_commit.modified, 'backend/') ||
+      contains(github.event.head_commit.added, 'backend/')
 
     services:
       postgres:
@@ -90,6 +95,11 @@ jobs:
   frontend:
     name: Frontend Tests & Build
     runs-on: ubuntu-latest
+    # Only run if frontend files changed
+    if: |
+      github.event_name == 'pull_request' ||
+      contains(github.event.head_commit.modified, 'frontend/') ||
+      contains(github.event.head_commit.added, 'frontend/')
 
     steps:
       - name: Checkout code

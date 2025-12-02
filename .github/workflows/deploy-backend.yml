@@ -1,0 +1,29 @@
+name: Deploy Backend to Render
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'backend/**'
+      - '.github/workflows/deploy-backend.yml'
+
+jobs:
+  deploy-backend:
+    name: Deploy Backend to Render
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Trigger Render Deployment
+        run: |
+          echo "🚀 Triggering Render deployment for backend..."
+          curl -X POST "${{ secrets.RENDER_DEPLOY_HOOK_URL }}"
+          echo "✅ Render deployment triggered successfully!"
+
+      - name: Notify deployment
+        run: |
+          echo "Backend deployment initiated on Render"
+          echo "Check status at: https://dashboard.render.com"
