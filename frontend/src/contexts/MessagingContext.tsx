@@ -77,16 +77,22 @@ export const MessagingProvider: React.FC<MessagingProviderProps> = ({ children }
   };
 
   const connectSocket = useCallback(() => {
-    const token = localStorage.getItem('accessToken');
+    let token = localStorage.getItem('accessToken');
     if (!token) {
       console.log('No access token, skipping socket connection');
       return;
     }
+    if (token.startsWith('Bearer ')) {
+      token = token.slice('Bearer '.length);
+    }
 
-    const backendUrl =
-      typeof window !== 'undefined' && window.location.hostname === 'localhost'
-        ? 'http://localhost:3001'
-        : process.env.NEXT_PUBLIC_API_URL || 'https://jecrc-dating-backend.onrender.com';
+    const isLocalHost = (
+      typeof window !== 'undefined' &&
+      ['localhost', '127.0.0.1', '[::1]', '0.0.0.0'].includes(window.location.hostname)
+    );
+    const backendUrl = isLocalHost
+      ? 'http://localhost:4000'
+      : process.env.NEXT_PUBLIC_API_URL || 'https://jecrc-dating-backend.onrender.com';
     
     console.log('Initializing socket connection to:', backendUrl);
     setConnectionStatus('connecting');
@@ -206,7 +212,24 @@ export const MessagingProvider: React.FC<MessagingProviderProps> = ({ children }
 
   useEffect(() => {
     const cleanup = connectSocket();
-    return cleanup;
+    
+    // Listen for token refresh events
+    const handleTokenRefresh = () => {
+      console.log('Token refreshed, reconnecting socket...');
+      // Reconnect socket with new token
+      if (socket) {
+        socket.disconnect();
+      }
+      connectSocket();
+    };
+    
+    // Listen for storage events (token updates)
+    window.addEventListener('tokenRefreshed', handleTokenRefresh);
+    
+    return () => {
+      cleanup?.();
+      window.removeEventListener('tokenRefreshed', handleTokenRefresh);
+    };
   }, [connectSocket]);
 
   const sendMessage = useCallback((matchId: string, content: string) => {
