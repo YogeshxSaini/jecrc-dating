@@ -25,7 +25,7 @@ const DEBUG_MODE = process.env.NODE_ENV === 'development';
 /**
  * Parse JWT token and extract payload
  */
-function parseJWT(token: string): TokenPayload | null {
+export function parseJWT(token: string): TokenPayload | null {
   try {
     const base64Url = token.split('.')[1];
     const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
@@ -222,12 +222,12 @@ export function getTimeSinceLastActivity(): number {
 export function isInactive(): boolean {
   const timeSinceActivity = getTimeSinceLastActivity();
   const inactive = timeSinceActivity > INACTIVITY_THRESHOLD_MS;
-  
+
   if (DEBUG_MODE && inactive) {
     const minutesInactive = Math.floor(timeSinceActivity / 1000 / 60);
     console.log(`[TokenManager] User inactive for ${minutesInactive} minutes`);
   }
-  
+
   return inactive;
 }
 
@@ -249,11 +249,11 @@ export async function validateAfterInactivity(): Promise<boolean> {
   // Check if token needs refresh
   if (needsRefresh()) {
     console.log('[TokenManager] Token needs refresh after inactivity, refreshing');
-    
+
     setRefreshing(true);
     try {
       const refreshSuccess = await refreshWithRetry();
-      
+
       if (refreshSuccess) {
         console.log('[TokenManager] Token refreshed successfully after inactivity');
         // Update activity timestamp after successful refresh
@@ -330,7 +330,7 @@ function isNetworkError(error: any): boolean {
   if (!error.response) {
     return true;
   }
-  
+
   // Check for network-related status codes
   const networkStatusCodes = [408, 429, 500, 502, 503, 504];
   return networkStatusCodes.includes(error.response.status);
@@ -353,7 +353,7 @@ function sleep(ms: number): Promise<void> {
  */
 export async function refreshWithRetry(attempt: number = 0): Promise<boolean> {
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
-  
+
   if (typeof window === 'undefined') {
     console.error('[TokenManager] Cannot refresh token: not in browser environment');
     return false;
@@ -373,13 +373,13 @@ export async function refreshWithRetry(attempt: number = 0): Promise<boolean> {
 
     // Import axios dynamically to avoid circular dependencies
     const axios = (await import('axios')).default;
-    
+
     const response = await axios.post(`${API_URL}/api/auth/refresh`, {
       refreshToken,
     });
 
     const { accessToken } = response.data;
-    
+
     if (!accessToken) {
       console.error('[TokenManager] Refresh response missing accessToken');
       clearTokens('Invalid refresh response');
@@ -389,7 +389,7 @@ export async function refreshWithRetry(attempt: number = 0): Promise<boolean> {
     // Store the new token with expiry
     storeTokenWithExpiry(accessToken);
     console.log('[TokenManager] Token refresh successful');
-    
+
     return true;
   } catch (error: any) {
     // Handle 401 from refresh endpoint - no retry
@@ -406,7 +406,7 @@ export async function refreshWithRetry(attempt: number = 0): Promise<boolean> {
         `[TokenManager] Network error during refresh, retrying in ${delay}ms (attempt ${attempt + 1}/2)`,
         error.message
       );
-      
+
       await sleep(delay);
       return refreshWithRetry(attempt + 1);
     }
@@ -464,7 +464,7 @@ export function scheduleProactiveRefresh(): void {
   // Schedule refresh for 2 minutes before expiry
   const minutesUntilRefresh = Math.floor(timeUntilRefresh / 1000 / 60);
   const secondsUntilRefresh = Math.floor((timeUntilRefresh / 1000) % 60);
-  
+
   console.log(
     `[TokenManager] Scheduling proactive refresh in ${minutesUntilRefresh}m ${secondsUntilRefresh}s`
   );

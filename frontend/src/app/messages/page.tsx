@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { ChatList } from '@/components/messaging/ChatList';
 import { ChatWindow } from '@/components/messaging/ChatWindow';
 import { MessagingProvider } from '@/contexts/MessagingContext';
+import { parseJWT } from '@/utils/tokenManager';
 
 interface User {
   id: string;
@@ -29,11 +30,12 @@ const MessagesPageContent: React.FC = () => {
     }
 
     // Get current user ID from token (decode JWT)
-    try {
-      const payload = JSON.parse(atob(token.split('.')[1]));
+    const payload = parseJWT(token);
+    if (payload) {
       setCurrentUserId(payload.id);
-    } catch (error) {
-      console.error('Error decoding token:', error);
+    } else {
+      console.error('Error decoding token: Invalid payload');
+      router.push('/login');
     }
   }, [router]);
 
@@ -46,8 +48,8 @@ const MessagesPageContent: React.FC = () => {
     <div className="fixed inset-0 flex bg-gray-100">
       {/* Sidebar - Chat List */}
       <div className="w-full md:w-96 flex-shrink-0 h-full">
-        <ChatList 
-          onSelectChat={handleSelectChat} 
+        <ChatList
+          onSelectChat={handleSelectChat}
           selectedMatchId={selectedMatchId}
         />
       </div>
@@ -55,8 +57,8 @@ const MessagesPageContent: React.FC = () => {
       {/* Main Content - Chat Window */}
       <div className="flex-1 hidden md:flex h-full">
         {selectedMatchId && selectedUser ? (
-          <ChatWindow 
-            matchId={selectedMatchId} 
+          <ChatWindow
+            matchId={selectedMatchId}
             user={selectedUser}
             currentUserId={currentUserId || undefined}
           />
@@ -95,8 +97,8 @@ const MessagesPageContent: React.FC = () => {
             <h1 className="text-lg font-semibold">Back to conversations</h1>
           </div>
           <div className="h-[calc(100vh-64px)]">
-            <ChatWindow 
-              matchId={selectedMatchId} 
+            <ChatWindow
+              matchId={selectedMatchId}
               user={selectedUser}
               currentUserId={currentUserId || undefined}
             />

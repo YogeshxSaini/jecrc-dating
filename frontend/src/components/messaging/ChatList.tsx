@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useMessaging } from '@/contexts/MessagingContext';
+import { parseJWT } from '@/utils/tokenManager';
 
 interface Match {
   matchId: string;
@@ -41,11 +42,11 @@ export const ChatList: React.FC<ChatListProps> = ({ onSelectChat, selectedMatchI
     // Get current user ID from token
     const token = localStorage.getItem('accessToken');
     if (token) {
-      try {
-        const payload = JSON.parse(atob(token.split('.')[1]));
+      const payload = parseJWT(token);
+      if (payload) {
         setCurrentUserId(payload.id);
-      } catch (error) {
-        console.error('Error decoding token:', error);
+      } else {
+        console.error('Error decoding token in ChatList');
       }
     }
     fetchMatches();
@@ -58,10 +59,10 @@ export const ChatList: React.FC<ChatListProps> = ({ onSelectChat, selectedMatchI
         prev.map((match) => {
           if (match.matchId === message.matchId) {
             // Only increment unread if message is from the other user AND chat is not selected
-            const shouldIncrementUnread = 
-              message.senderId === match.user.id && 
+            const shouldIncrementUnread =
+              message.senderId === match.user.id &&
               selectedMatchId !== match.matchId;
-            
+
             return {
               ...match,
               lastMessage: {
@@ -218,9 +219,8 @@ export const ChatList: React.FC<ChatListProps> = ({ onSelectChat, selectedMatchI
                     );
                   }
                 }}
-                className={`p-4 border-b cursor-pointer transition-colors ${
-                  isSelected ? 'bg-pink-50' : 'hover:bg-gray-50'
-                }`}
+                className={`p-4 border-b cursor-pointer transition-colors ${isSelected ? 'bg-pink-50' : 'hover:bg-gray-50'
+                  }`}
               >
                 <div className="flex items-start gap-3">
                   {/* Profile Image */}
@@ -254,7 +254,7 @@ export const ChatList: React.FC<ChatListProps> = ({ onSelectChat, selectedMatchI
                         </span>
                       )}
                     </div>
-                    
+
                     <div className="text-xs text-gray-500 mt-0.5">
                       {match.user.department && match.user.year && (
                         <span>
