@@ -1,9 +1,17 @@
-import axios, { AxiosInstance, AxiosError } from 'axios';
+import axios, { AxiosInstance, AxiosError, AxiosRequestConfig } from 'axios';
+import { needsRefresh, refreshWithRetry, isRefreshing, setRefreshing, clearTokens, storeTokenWithExpiry, validateAfterInactivity, updateLastActivity } from '../utils/tokenManager';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
+interface QueuedRequest {
+  config: AxiosRequestConfig;
+  resolve: (value: any) => void;
+  reject: (error: any) => void;
+}
+
 class ApiClient {
   private client: AxiosInstance;
+  private requestQueue: QueuedRequest[] = [];
 
   constructor() {
     this.client = axios.create({
@@ -13,47 +21,171 @@ class ApiClient {
       },
     });
 
-    // Request interceptor - add auth token
+    // Request interceptor - add auth token and proactive refresh
     this.client.interceptors.request.use(
-      (config) => {
+      async (config) => {
+        // Update activity timestamp on every API request
+        updateLastActivity();
+
+        // Validate token freshness after inactivity (> 5 minutes)
+        const validAfterInactivity = await validateAfterInactivity();
+        if (!validAfterInactivity) {
+          console.error('[API Client] Token validation failed after inactivity, redirecting to login');
+          console.log('[API Client] Redirecting to login - Reason: Token validation failed after inactivity');
+          window.location.href = '/login';
+          return Promise.reject(new Error('Token validation failed after inactivity'));
+        }
+
+        // Check if token needs proactive refresh (< 2 minutes until expiry)
+        if (needsRefresh() && !isRefreshing()) {
+          console.log('[API Client] Token needs refresh before request, refreshing proactively');
+          setRefreshing(true);
+          
+          try {
+            const refreshSuccess = await refreshWithRetry();
+            
+            if (!refreshSuccess) {
+              console.error('[API Client] Proactive refresh failed, redirecting to login');
+              setRefreshing(false);
+              console.log('[API Client] Redirecting to login - Reason: Proactive token refresh failed');
+              window.location.href = '/login';
+              return Promise.reject(new Error('Token refresh failed'));
+            }
+            
+            console.log('[API Client] Proactive refresh successful');
+          } finally {
+            setRefreshing(false);
+          }
+        }
+        
+        // If refresh is in progress (from another request), wait for it
+        if (isRefreshing()) {
+          console.log('[API Client] Refresh in progress, waiting...');
+          // Wait for refresh to complete (poll every 100ms, max 10 seconds)
+          const maxWaitTime = 10000;
+          const pollInterval = 100;
+          let waited = 0;
+          
+          while (isRefreshing() && waited < maxWaitTime) {
+            await new Promise(resolve => setTimeout(resolve, pollInterval));
+            waited += pollInterval;
+          }
+          
+          if (waited >= maxWaitTime) {
+            console.error('[API Client] Timeout waiting for refresh to complete');
+            return Promise.reject(new Error('Token refresh timeout'));
+          }
+        }
+        
+        // Add authorization header with current token
         const token = this.getAccessToken();
         if (token) {
           config.headers.Authorization = `Bearer ${token}`;
         }
+        
         return config;
       },
       (error) => Promise.reject(error)
     );
 
-    // Response interceptor - handle token refresh
+    // Response interceptor - handle token refresh with request queuing
     this.client.interceptors.response.use(
       (response) => response,
       async (error: AxiosError) => {
         const originalRequest = error.config as any;
 
-        // If 401 and not already retrying, try to refresh token
+        // Handle 403 for banned/deactivated users
+        if (error.response?.status === 403) {
+          const errorData = error.response.data as any;
+          const errorMessage = errorData?.error || errorData?.message || '';
+          
+          // Check if this is a ban/deactivation error
+          const isBannedOrDeactivated = 
+            errorMessage.toLowerCase().includes('banned') ||
+            errorMessage.toLowerCase().includes('deactivated') ||
+            errorMessage.toLowerCase().includes('suspended');
+          
+          if (isBannedOrDeactivated) {
+            console.log('[API Client] User banned/deactivated, clearing tokens and redirecting');
+            clearTokens('User banned or deactivated');
+            
+            if (typeof window !== 'undefined') {
+              // Redirect to login with error parameter
+              const encodedMessage = encodeURIComponent(errorMessage);
+              window.location.href = `/login?error=${encodedMessage}`;
+            }
+            
+            return Promise.reject(error);
+          }
+        }
+
+        // If 401 and not already retrying, handle token refresh
         if (error.response?.status === 401 && !originalRequest._retry) {
           originalRequest._retry = true;
 
+          // Check for server/client time disagreement
+          // If client thinks token is still valid but server says 401, log the disagreement
+          if (!needsRefresh()) {
+            const expiry = this.getTokenExpiry();
+            if (expiry) {
+              const now = new Date();
+              const timeUntilExpiry = expiry.getTime() - now.getTime();
+              const minutesRemaining = Math.floor(timeUntilExpiry / 1000 / 60);
+              console.warn(
+                `[API Client] Server/client time disagreement detected: ` +
+                `Server returned 401 but client thinks token is valid for ${minutesRemaining} more minutes. ` +
+                `Trusting server response and refreshing token.`
+              );
+            }
+          }
+
+          // If refresh is already in progress, queue this request
+          if (isRefreshing()) {
+            console.log('[API Client] Refresh in progress, queueing request');
+            return this.queueRequest(originalRequest);
+          }
+
+          // Start refresh process
+          setRefreshing(true);
+          console.log('[API Client] Starting token refresh due to 401');
+
           try {
-            const refreshToken = this.getRefreshToken();
-            if (refreshToken) {
-              const response = await axios.post(`${API_URL}/api/auth/refresh`, {
-                refreshToken,
-              });
+            const refreshSuccess = await refreshWithRetry();
 
-              const { accessToken } = response.data;
-              this.setAccessToken(accessToken);
+            if (refreshSuccess) {
+              // Refresh succeeded - process queue with new token
+              const newToken = this.getAccessToken();
+              console.log('[API Client] Token refresh successful, processing queue');
+              this.processQueue(null, newToken);
 
-              // Retry original request with new token
-              originalRequest.headers.Authorization = `Bearer ${accessToken}`;
+              // Retry the original request with new token
+              if (newToken) {
+                originalRequest.headers.Authorization = `Bearer ${newToken}`;
+              }
               return this.client(originalRequest);
+            } else {
+              // Refresh failed - clear queue and redirect
+              console.error('[API Client] Token refresh failed, clearing queue and redirecting');
+              this.processQueue(new Error('Token refresh failed'), null);
+              
+              if (typeof window !== 'undefined') {
+                console.log('[API Client] Redirecting to login - Reason: Token refresh failed after retries');
+                window.location.href = '/login';
+              }
+              return Promise.reject(new Error('Token refresh failed'));
             }
           } catch (refreshError) {
-            // Refresh failed, logout user
-            this.clearTokens();
-            window.location.href = '/login';
+            // Refresh failed with exception - clear queue and redirect
+            console.error('[API Client] Token refresh exception:', refreshError);
+            this.processQueue(refreshError as Error, null);
+            
+            if (typeof window !== 'undefined') {
+              console.log('[API Client] Redirecting to login - Reason: Token refresh exception', refreshError);
+              window.location.href = '/login';
+            }
             return Promise.reject(refreshError);
+          } finally {
+            setRefreshing(false);
           }
         }
 
@@ -62,10 +194,58 @@ class ApiClient {
     );
   }
 
+  /**
+   * Queue a request to be retried after token refresh completes
+   */
+  private queueRequest(config: AxiosRequestConfig): Promise<any> {
+    return new Promise((resolve, reject) => {
+      this.requestQueue.push({ config, resolve, reject });
+    });
+  }
+
+  /**
+   * Process all queued requests after token refresh
+   * @param error - Error to reject all requests with (if refresh failed)
+   * @param token - New access token to use for requests (if refresh succeeded)
+   */
+  private processQueue(error: Error | null, token: string | null): void {
+    console.log(`[API Client] Processing queue with ${this.requestQueue.length} requests`);
+    
+    this.requestQueue.forEach((request) => {
+      if (error) {
+        // Refresh failed - reject all queued requests
+        request.reject(error);
+      } else {
+        // Refresh succeeded - retry all queued requests with new token
+        if (token) {
+          request.config.headers = request.config.headers || {};
+          request.config.headers.Authorization = `Bearer ${token}`;
+        }
+        request.resolve(this.client(request.config));
+      }
+    });
+
+    // Clear the queue
+    this.requestQueue = [];
+  }
+
   // Token management
   getAccessToken(): string | null {
     if (typeof window !== 'undefined') {
       return localStorage.getItem('accessToken');
+    }
+    return null;
+  }
+
+  getTokenExpiry(): Date | null {
+    if (typeof window === 'undefined') return null;
+    
+    const storedExpiry = localStorage.getItem('tokenExpiry');
+    if (storedExpiry) {
+      const expiryDate = new Date(storedExpiry);
+      if (!isNaN(expiryDate.getTime())) {
+        return expiryDate;
+      }
     }
     return null;
   }
@@ -93,6 +273,8 @@ class ApiClient {
     if (typeof window !== 'undefined') {
       localStorage.removeItem('accessToken');
       localStorage.removeItem('refreshToken');
+      localStorage.removeItem('tokenExpiry');
+      console.log('[API Client] Tokens cleared from localStorage');
     }
   }
 
@@ -114,7 +296,7 @@ class ApiClient {
     });
     
     if (response.data.accessToken) {
-      this.setAccessToken(response.data.accessToken);
+      storeTokenWithExpiry(response.data.accessToken);
       this.setRefreshToken(response.data.refreshToken);
     }
 
@@ -125,7 +307,7 @@ class ApiClient {
     const response = await this.client.post('/api/auth/login', { email, password });
     
     if (response.data.accessToken) {
-      this.setAccessToken(response.data.accessToken);
+      storeTokenWithExpiry(response.data.accessToken);
       this.setRefreshToken(response.data.refreshToken);
     }
 
@@ -135,7 +317,7 @@ class ApiClient {
   async logout() {
     const refreshToken = this.getRefreshToken();
     await this.client.post('/api/auth/logout', { refreshToken });
-    this.clearTokens();
+    clearTokens('User logout');
   }
 
   async getMe() {

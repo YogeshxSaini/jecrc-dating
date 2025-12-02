@@ -3,6 +3,8 @@
  * Automatically refreshes access tokens before they expire
  */
 
+import { initializeBackgroundOptimization, cleanupBackgroundOptimization } from './backgroundTabOptimization';
+
 let refreshTimer: NodeJS.Timeout | null = null;
 
 const getApiBase = () => {
@@ -110,6 +112,9 @@ export const initializeTokenRefresh = () => {
   if (accessToken && refreshToken) {
     console.log('Initializing automatic token refresh');
     scheduleTokenRefresh();
+    
+    // Initialize background tab optimization
+    initializeBackgroundOptimization();
   }
 };
 
@@ -121,4 +126,7 @@ export const stopTokenRefresh = () => {
     clearTimeout(refreshTimer);
     refreshTimer = null;
   }
+  
+  // Cleanup background tab optimization
+  cleanupBackgroundOptimization();
 };
