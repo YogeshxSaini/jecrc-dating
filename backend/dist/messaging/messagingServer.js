@@ -91,16 +91,26 @@ const initializeMessagingServer = (httpServer) => {
                 const otherUserId = match.userAId === userId ? match.userBId : match.userAId;
                 io.to(`user_${otherUserId}`).emit('user_online', { userId });
             });
-            // Mark all undelivered messages sent to this user as delivered
+            // Mark undelivered messages as delivered per match and notify senders
             const deliveredAt = new Date();
-            await prisma.message.updateMany({
-                where: {
-                    matchId: { in: matches.map(m => m.id) },
-                    senderId: { not: userId },
-                    deliveredAt: null,
-                },
-                data: { deliveredAt },
-            });
+            for (const match of matches) {
+                const otherUserId = match.userAId === userId ? match.userBId : match.userAId;
+                const result = await prisma.message.updateMany({
+                    where: {
+                        matchId: match.id,
+                        senderId: { not: userId },
+                        deliveredAt: null,
+                    },
+                    data: { deliveredAt },
+                });
+                // If any messages were updated, notify the sender(s) in that match
+                if (result.count && result.count > 0) {
+                    io.to(`user_${otherUserId}`).emit('message_delivered', {
+                        matchId: match.id,
+                        deliveredAt: deliveredAt.toISOString(),
+                    });
+                }
+            }
         }
         catch (error) {
             console.error('Error notifying online status:', error);

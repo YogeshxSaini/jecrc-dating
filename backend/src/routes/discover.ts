@@ -16,6 +16,15 @@ router.get(
     const limit = parseInt(req.query.limit as string) || 10;
     const offset = parseInt(req.query.offset as string) || 0;
 
+    // Parse filter parameters from query string
+    const departmentsParam = req.query.departments as string;
+    const yearsParam = req.query.years as string;
+    const interestsParam = req.query.interests as string;
+
+    const departments = departmentsParam ? departmentsParam.split(',').map(d => d.trim()) : [];
+    const years = yearsParam ? yearsParam.split(',').map(y => y.trim()) : [];
+    const interests = interestsParam ? interestsParam.split(',').map(i => i.trim()) : [];
+
     // Get current user's profile to filter by preferences
     const currentProfile = await prisma.profile.findUnique({
       where: { userId: req.user!.id },
@@ -50,11 +59,34 @@ router.get(
       isBanned: false,
     };
 
+    // Build profile filter conditions
+    const profileConditions: any = {};
+
     // Filter by lookingFor preference if set
     if (currentProfile?.lookingFor) {
-      whereConditions.profile = {
-        gender: currentProfile.lookingFor,
+      profileConditions.gender = currentProfile.lookingFor;
+    }
+
+    // Filter by department if specified
+    if (departments.length > 0) {
+      profileConditions.department = { in: departments };
+    }
+
+    // Filter by year if specified
+    if (years.length > 0) {
+      profileConditions.year = { in: years };
+    }
+
+    // Filter by interests if specified (user must have at least one of the selected interests)
+    if (interests.length > 0) {
+      profileConditions.interests = {
+        hasSome: interests,
       };
+    }
+
+    // Apply profile filters if any exist
+    if (Object.keys(profileConditions).length > 0) {
+      whereConditions.profile = profileConditions;
     }
 
     // Get ALL potential matches (no limit for true randomization)
