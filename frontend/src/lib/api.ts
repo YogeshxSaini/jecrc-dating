@@ -160,10 +160,26 @@ class ApiClient {
   }
 
   // Discovery endpoints
-  async getDiscoverFeed(limit = 10, offset = 0) {
-    const response = await this.client.get('/api/discover', {
-      params: { limit, offset },
-    });
+  async getDiscoverFeed(
+    limit = 10, 
+    offset = 0,
+    departments: string[] = [],
+    years: string[] = [],
+    interests: string[] = []
+  ) {
+    const params: any = { limit, offset };
+    
+    if (departments.length > 0) {
+      params.departments = departments.join(',');
+    }
+    if (years.length > 0) {
+      params.years = years.join(',');
+    }
+    if (interests.length > 0) {
+      params.interests = interests.join(',');
+    }
+    
+    const response = await this.client.get('/api/discover', { params });
     return response.data;
   }
 
