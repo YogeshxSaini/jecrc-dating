@@ -169,7 +169,6 @@ router.get(
       matchId: msg.matchId,
       senderId: msg.senderId,
       content: msg.content,
-      deliveredAt: msg.deliveredAt,
       readAt: msg.readAt,
       createdAt: msg.createdAt,
       sender: {

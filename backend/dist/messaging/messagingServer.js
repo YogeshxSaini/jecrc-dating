@@ -6,6 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.getOnlineUsers = exports.getIO = exports.initializeMessagingServer = void 0;
 const socket_io_1 = require("socket.io");
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
+const config_1 = __importDefault(require("../config"));
 const client_1 = require("@prisma/client");
 const prisma = new client_1.PrismaClient();
 // In-memory storage for online users (use Redis in production for scaling)
@@ -16,6 +17,7 @@ const initializeMessagingServer = (httpServer) => {
         cors: {
             origin: [
                 'http://localhost:3000',
+                'http://127.0.0.1:3000',
                 'https://dayalcolonizers.xyz',
                 /\.pages\.dev$/,
                 /\.onrender\.com$/,
@@ -29,17 +31,35 @@ const initializeMessagingServer = (httpServer) => {
     // Authentication middleware
     io.use(async (socket, next) => {
         try {
-            const token = socket.handshake.auth.token;
+            let token = socket.handshake.auth.token;
             if (!token) {
                 return next(new Error('Authentication token required'));
             }
-            const decoded = jsonwebtoken_1.default.verify(token, process.env.JWT_SECRET);
-            socket.userId = decoded.userId;
-            console.log(`User ${decoded.userId} authenticated on socket ${socket.id}`);
+            // Support tokens with optional 'Bearer ' prefix
+            if (token.startsWith('Bearer ')) {
+                token = token.slice('Bearer '.length);
+            }
+            const decoded = jsonwebtoken_1.default.verify(token, config_1.default.jwtSecret);
+            const resolvedUserId = decoded.userId || decoded.id;
+            if (!resolvedUserId || typeof resolvedUserId !== 'string') {
+                return next(new Error('Authentication failed: invalid token payload'));
+            }
+            socket.userId = resolvedUserId;
+            console.log(`User ${resolvedUserId} authenticated on socket ${socket.id}`);
             next();
         }
         catch (error) {
-            console.error('Socket authentication error:', error);
+            console.error('Socket authentication error:', error?.name || 'Error', error?.message || error);
+            try {
+                // Provide more context if possible
+                const raw = socket.handshake.auth.token;
+                console.warn('Socket auth context:', {
+                    hasToken: !!raw,
+                    tokenStartsWithBearer: raw ? raw.startsWith('Bearer ') : false,
+                    origin: (socket.handshake.headers && socket.handshake.headers.origin) || 'unknown',
+                });
+            }
+            catch { }
             next(new Error('Authentication failed'));
         }
     });
@@ -62,6 +82,7 @@ const initializeMessagingServer = (httpServer) => {
                     OR: [{ userAId: userId }, { userBId: userId }],
                 },
                 select: {
+                    id: true,
                     userAId: true,
                     userBId: true,
                 },
@@ -70,6 +91,16 @@ const initializeMessagingServer = (httpServer) => {
                 const otherUserId = match.userAId === userId ? match.userBId : match.userAId;
                 io.to(`user_${otherUserId}`).emit('user_online', { userId });
             });
+            // Mark all undelivered messages sent to this user as delivered
+            const deliveredAt = new Date();
+            await prisma.message.updateMany({
+                where: {
+                    matchId: { in: matches.map(m => m.id) },
+                    senderId: { not: userId },
+                    deliveredAt: null,
+                },
+                data: { deliveredAt },
+            });
         }
         catch (error) {
             console.error('Error notifying online status:', error);
@@ -77,11 +108,20 @@ const initializeMessagingServer = (httpServer) => {
         // Handle sending messages
         socket.on('send_message', async (data, callback) => {
             try {
-                console.log(`User ${userId} sending message to match ${data.matchId}`);
+                const { matchId, content } = data || {};
+                if (!matchId || typeof matchId !== 'string') {
+                    callback?.({ error: 'Invalid matchId' });
+                    return;
+                }
+                if (!content || typeof content !== 'string' || !content.trim()) {
+                    callback?.({ error: 'Message content required' });
+                    return;
+                }
+                console.log(`User ${userId} sending message to match ${matchId} (socket ${socket.id})`);
                 // Verify match exists and user is part of it
                 const match = await prisma.match.findFirst({
                     where: {
-                        id: data.matchId,
+                        id: matchId,
                         OR: [{ userAId: userId }, { userBId: userId }],
                     },
                     include: {
@@ -100,15 +140,16 @@ const initializeMessagingServer = (httpServer) => {
                     },
                 });
                 if (!match) {
+                    console.warn('send_message: Match not found or unauthorized', JSON.stringify({ userId, matchId }, null, 2));
                     callback?.({ error: 'Match not found or unauthorized' });
                     return;
                 }
                 // Create message
                 const message = await prisma.message.create({
                     data: {
-                        matchId: data.matchId,
+                        matchId,
                         senderId: userId,
-                        content: data.content.trim(),
+                        content: content.trim(),
                     },
                     include: {
                         sender: {
@@ -121,10 +162,30 @@ const initializeMessagingServer = (httpServer) => {
                 });
                 // Determine recipient
                 const recipientId = match.userAId === userId ? match.userBId : match.userAId;
+                // Check if recipient is online and mark as delivered if they are
+                const isRecipientOnline = onlineUsers.has(recipientId);
+                let messageWithDelivery = message;
+                if (isRecipientOnline) {
+                    // Mark as delivered immediately if recipient is online
+                    messageWithDelivery = await prisma.message.update({
+                        where: { id: message.id },
+                        data: { deliveredAt: new Date() },
+                        include: {
+                            sender: {
+                                select: {
+                                    id: true,
+                                    displayName: true,
+                                },
+                            },
+                        },
+                    });
+                }
                 // Send message to recipient
-                io.to(`user_${recipientId}`).emit('new_message', message);
+                io.to(`user_${recipientId}`).emit('new_message', messageWithDelivery);
+                // Also send to sender so they see their own message with delivery status
+                io.to(`user_${userId}`).emit('new_message', messageWithDelivery);
                 // Send confirmation back to sender
-                callback?.({ success: true, message });
+                callback?.({ success: true, message: messageWithDelivery });
                 console.log(`Message sent successfully: ${message.id}`);
             }
             catch (error) {

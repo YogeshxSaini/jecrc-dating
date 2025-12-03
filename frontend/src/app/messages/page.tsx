@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import { ChatList } from '@/components/messaging/ChatList';
 import { ChatWindow } from '@/components/messaging/ChatWindow';
 import { MessagingProvider } from '@/contexts/MessagingContext';
-import { parseJWT } from '@/utils/tokenManager';
 
 interface User {
   id: string;
@@ -30,12 +29,11 @@ const MessagesPageContent: React.FC = () => {
     }
 
     // Get current user ID from token (decode JWT)
-    const payload = parseJWT(token);
-    if (payload) {
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
       setCurrentUserId(payload.id);
-    } else {
-      console.error('Error decoding token: Invalid payload');
-      router.push('/login');
+    } catch (error) {
+      console.error('Error decoding token:', error);
     }
   }, [router]);
 
@@ -44,21 +42,39 @@ const MessagesPageContent: React.FC = () => {
     setSelectedUser(user);
   };
 
+  const handleBack = () => {
+    router.back();
+  };
+
   return (
-    <div className="fixed inset-0 flex bg-gray-100">
+    <div className="flex w-full h-screen bg-gray-100 overflow-hidden">
       {/* Sidebar - Chat List */}
-      <div className="w-full md:w-96 flex-shrink-0 h-full">
-        <ChatList
-          onSelectChat={handleSelectChat}
+      <div className="w-full md:w-96 flex-shrink-0 h-full overflow-hidden flex flex-col">
+        {/* Back button */}
+        <div className="flex items-center gap-3 p-4 bg-white border-b">
+          <button
+            onClick={handleBack}
+            className="flex items-center justify-center w-10 h-10 rounded-full hover:bg-gray-100 transition-colors"
+            aria-label="Go back"
+          >
+            <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
+          <h1 className="text-xl font-bold text-gray-900">Messages</h1>
+        </div>
+        
+        <ChatList 
+          onSelectChat={handleSelectChat} 
           selectedMatchId={selectedMatchId}
         />
       </div>
 
       {/* Main Content - Chat Window */}
-      <div className="flex-1 hidden md:flex h-full">
+      <div className="flex-1 hidden md:flex h-full overflow-hidden">
         {selectedMatchId && selectedUser ? (
-          <ChatWindow
-            matchId={selectedMatchId}
+          <ChatWindow 
+            matchId={selectedMatchId} 
             user={selectedUser}
             currentUserId={currentUserId || undefined}
           />
@@ -97,8 +113,8 @@ const MessagesPageContent: React.FC = () => {
             <h1 className="text-lg font-semibold">Back to conversations</h1>
           </div>
           <div className="h-[calc(100vh-64px)]">
-            <ChatWindow
-              matchId={selectedMatchId}
+            <ChatWindow 
+              matchId={selectedMatchId} 
               user={selectedUser}
               currentUserId={currentUserId || undefined}
             />

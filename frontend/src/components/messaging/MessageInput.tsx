@@ -11,10 +11,15 @@ interface MessageInputProps {
 export const MessageInput: React.FC<MessageInputProps> = ({ onSendMessage, matchId }) => {
   const [message, setMessage] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout>();
+  const emojiPickerRef = useRef<HTMLDivElement>(null);
   
   const { startTyping, stopTyping, connectionStatus } = useMessaging();
+
+  // Common emojis for quick access
+  const commonEmojis = ['😊', '😂', '❤️', '👍', '🎉', '😍', '🔥', '👏', '😢', '🙏', '💯', '✨', '🎊', '🥰', '😎', '🤗', '😘', '💕', '🌟', '💖'];
 
   useEffect(() => {
     // Auto-resize textarea
@@ -23,6 +28,23 @@ export const MessageInput: React.FC<MessageInputProps> = ({ onSendMessage, match
       textareaRef.current.style.height = textareaRef.current.scrollHeight + 'px';
     }
   }, [message]);
+
+  useEffect(() => {
+    // Close emoji picker when clicking outside
+    const handleClickOutside = (event: MouseEvent) => {
+      if (emojiPickerRef.current && !emojiPickerRef.current.contains(event.target as Node)) {
+        setShowEmojiPicker(false);
+      }
+    };
+
+    if (showEmojiPicker) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showEmojiPicker]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setMessage(e.target.value);
@@ -79,12 +101,18 @@ export const MessageInput: React.FC<MessageInputProps> = ({ onSendMessage, match
     }
   };
 
+  const handleEmojiClick = (emoji: string) => {
+    setMessage(prev => prev + emoji);
+    setShowEmojiPicker(false);
+    textareaRef.current?.focus();
+  };
+
   const isDisabled = connectionStatus !== 'connected';
 
   return (
     <div className="bg-white border-t p-4">
-      <form onSubmit={handleSubmit} className="flex items-end gap-2">
-        <div className="flex-1 relative">
+      <form onSubmit={handleSubmit} className="flex items-center gap-2">
+        <div className="flex-1 relative flex items-center" ref={emojiPickerRef}>
           <textarea
             ref={textareaRef}
             value={message}
@@ -96,16 +124,36 @@ export const MessageInput: React.FC<MessageInputProps> = ({ onSendMessage, match
                 : 'Type a message...'
             }
             disabled={isDisabled}
-            className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-full resize-none focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed max-h-32 overflow-y-auto text-gray-900 placeholder-gray-400"
+            className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-full resize-none focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed max-h-32 scrollbar-hide"
             rows={1}
-            style={{ minHeight: '48px' }}
+            style={{ minHeight: '48px', color: '#000', WebkitTextFillColor: '#000' }}
           />
           
-          {/* Emoji button (placeholder for future enhancement) */}
+          {/* Emoji picker */}
+          {showEmojiPicker && (
+            <div className="absolute bottom-full right-0 mb-2 bg-white rounded-lg shadow-lg border border-gray-200 p-3 w-64 z-10">
+              <div className="grid grid-cols-5 gap-2">
+                {commonEmojis.map((emoji, index) => (
+                  <button
+                    key={index}
+                    type="button"
+                    onClick={() => handleEmojiClick(emoji)}
+                    className="text-2xl hover:bg-gray-100 rounded p-2 transition-colors"
+                  >
+                    {emoji}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          
+          {/* Emoji button */}
           <button
             type="button"
-            className="absolute right-3 bottom-3 text-gray-400 hover:text-gray-600 transition-colors"
+            onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+            className="absolute right-3 text-gray-400 hover:text-gray-600 transition-colors"
             disabled={isDisabled}
+            style={{ top: '50%', transform: 'translateY(-50%)' }}
           >
             <svg 
               className="w-6 h-6" 
@@ -147,7 +195,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({ onSendMessage, match
 
       {/* Connection status warning */}
       {isDisabled && (
-        <div className="mt-2 text-xs text-center text-orange-500">
+        <div className="text-xs text-center text-orange-500 pt-2">
           {connectionStatus === 'connecting' && 'Connecting to server...'}
           {connectionStatus === 'reconnecting' && 'Reconnecting...'}
           {connectionStatus === 'disconnected' && 'Disconnected. Messages will be sent when reconnected.'}

@@ -2,7 +2,6 @@
 
 import React, { useEffect, useState } from 'react';
 import { useMessaging } from '@/contexts/MessagingContext';
-import { parseJWT } from '@/utils/tokenManager';
 
 interface Match {
   matchId: string;
@@ -35,20 +34,9 @@ export const ChatList: React.FC<ChatListProps> = ({ onSelectChat, selectedMatchI
   const [matches, setMatches] = useState<Match[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-  const { connectionStatus, onlineStatus, addMessageListener, addReadReceiptListener } = useMessaging();
+  const { connectionStatus, onlineStatus, addMessageListener } = useMessaging();
 
   useEffect(() => {
-    // Get current user ID from token
-    const token = localStorage.getItem('accessToken');
-    if (token) {
-      const payload = parseJWT(token);
-      if (payload) {
-        setCurrentUserId(payload.id);
-      } else {
-        console.error('Error decoding token in ChatList');
-      }
-    }
     fetchMatches();
   }, []);
 
@@ -58,11 +46,6 @@ export const ChatList: React.FC<ChatListProps> = ({ onSelectChat, selectedMatchI
       setMatches((prev) =>
         prev.map((match) => {
           if (match.matchId === message.matchId) {
-            // Only increment unread if message is from the other user AND chat is not selected
-            const shouldIncrementUnread =
-              message.senderId === match.user.id &&
-              selectedMatchId !== match.matchId;
-
             return {
               ...match,
               lastMessage: {
@@ -74,7 +57,10 @@ export const ChatList: React.FC<ChatListProps> = ({ onSelectChat, selectedMatchI
                   displayName: (message as any).sender?.displayName || (message as any).sender?.name || 'User',
                 },
               },
-              unreadCount: shouldIncrementUnread ? match.unreadCount + 1 : match.unreadCount,
+              unreadCount:
+                message.senderId !== match.user.id
+                  ? match.unreadCount + 1
+                  : match.unreadCount,
             };
           }
           return match;
@@ -83,7 +69,7 @@ export const ChatList: React.FC<ChatListProps> = ({ onSelectChat, selectedMatchI
     });
 
     return unsubscribe;
-  }, [addMessageListener, selectedMatchId]);
+  }, [addMessageListener]);
 
   const fetchMatches = async () => {
     try {
@@ -143,15 +129,6 @@ export const ChatList: React.FC<ChatListProps> = ({ onSelectChat, selectedMatchI
   if (loading) {
     return (
       <div className="flex flex-col h-full bg-white border-r">
-        <div className="p-4 border-b">
-          <h2 className="text-xl font-bold">Messages</h2>
-          <div className="text-xs mt-1 text-gray-500">
-            {connectionStatus === 'connected' && '🟢 Connected'}
-            {connectionStatus === 'connecting' && '🟡 Connecting...'}
-            {connectionStatus === 'reconnecting' && '🟠 Reconnecting...'}
-            {connectionStatus === 'disconnected' && '🔴 Disconnected'}
-          </div>
-        </div>
         <div className="flex items-center justify-center flex-1">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-pink-500"></div>
         </div>
@@ -162,9 +139,6 @@ export const ChatList: React.FC<ChatListProps> = ({ onSelectChat, selectedMatchI
   if (error) {
     return (
       <div className="flex flex-col h-full bg-white border-r">
-        <div className="p-4 border-b">
-          <h2 className="text-xl font-bold">Messages</h2>
-        </div>
         <div className="flex flex-col items-center justify-center flex-1 p-4">
           <p className="text-red-500 text-center">{error}</p>
           <button
@@ -180,19 +154,19 @@ export const ChatList: React.FC<ChatListProps> = ({ onSelectChat, selectedMatchI
 
   return (
     <div className="flex flex-col h-full bg-white border-r">
-      {/* Header */}
-      <div className="p-4 border-b">
-        <h2 className="text-xl font-bold">Messages</h2>
-        <div className="text-xs mt-1 text-gray-500">
-          {connectionStatus === 'connected' && '🟢 Connected'}
-          {connectionStatus === 'connecting' && '🟡 Connecting...'}
-          {connectionStatus === 'reconnecting' && '🟠 Reconnecting...'}
-          {connectionStatus === 'disconnected' && '🔴 Disconnected'}
+      {/* Connection Status */}
+      {connectionStatus !== 'connected' && (
+        <div className="px-4 py-2 bg-yellow-50 border-b">
+          <div className="text-xs text-gray-600">
+            {connectionStatus === 'connecting' && '🟡 Connecting...'}
+            {connectionStatus === 'reconnecting' && '🟠 Reconnecting...'}
+            {connectionStatus === 'disconnected' && '🔴 Disconnected'}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Match List */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto" style={{ mixBlendMode: 'normal', filter: 'none' }}>
         {matches.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full p-4 text-center">
             <p className="text-gray-500">No matches yet</p>
@@ -208,19 +182,10 @@ export const ChatList: React.FC<ChatListProps> = ({ onSelectChat, selectedMatchI
             return (
               <div
                 key={match.matchId}
-                onClick={() => {
-                  onSelectChat(match.matchId, match.user);
-                  // Clear unread count when chat is selected
-                  if (match.unreadCount > 0) {
-                    setMatches((prev) =>
-                      prev.map((m) =>
-                        m.matchId === match.matchId ? { ...m, unreadCount: 0 } : m
-                      )
-                    );
-                  }
-                }}
-                className={`p-4 border-b cursor-pointer transition-colors ${isSelected ? 'bg-pink-50' : 'hover:bg-gray-50'
-                  }`}
+                onClick={() => onSelectChat(match.matchId, match.user)}
+                className={`p-4 border-b cursor-pointer transition-colors ${
+                  isSelected ? 'bg-pink-50' : 'hover:bg-gray-50'
+                }`}
               >
                 <div className="flex items-start gap-3">
                   {/* Profile Image */}
@@ -254,7 +219,7 @@ export const ChatList: React.FC<ChatListProps> = ({ onSelectChat, selectedMatchI
                         </span>
                       )}
                     </div>
-
+                    
                     <div className="text-xs text-gray-500 mt-0.5">
                       {match.user.department && match.user.year && (
                         <span>
