@@ -406,15 +406,17 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ matchId, user, currentUs
             {(() => {
               const msg = messages.find(m => m.id === selectedMessageInfo);
               if (!msg) return null;
+              
+              // Only show if there's delivery or read info
+              const hasInfo = msg.deliveredAt || msg.readAt;
+              
               return (
                 <div className="space-y-3 text-sm">
-                  <div className="flex items-start gap-3">
-                    <span className="text-gray-400 mt-1">✓</span>
-                    <div className="flex-1">
-                      <div className="text-gray-600 font-medium">Sent</div>
-                      <div className="text-gray-900">{formatMessageTime(msg.createdAt)}</div>
-                    </div>
-                  </div>
+                  {!hasInfo && (
+                    <p className="text-gray-500 text-center py-4">
+                      Message not yet delivered
+                    </p>
+                  )}
                   {msg.deliveredAt && (
                     <div className="flex items-start gap-3">
                       <span className="text-gray-500 mt-1">✓✓</span>
