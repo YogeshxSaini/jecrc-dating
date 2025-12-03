@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { api } from '@/lib/api';
 import PhotoUpload from '@/components/PhotoUpload';
+import PhotoGallery from '@/components/ui/PhotoGallery';
+import Skeleton from '@/components/ui/Skeleton';
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -23,6 +25,8 @@ export default function ProfilePage() {
   });
   const [newInterest, setNewInterest] = useState('');
   const [saving, setSaving] = useState(false);
+  const [galleryOpen, setGalleryOpen] = useState(false);
+  const [galleryIndex, setGalleryIndex] = useState(0);
 
   useEffect(() => {
     const token = localStorage.getItem('accessToken');
@@ -108,8 +112,41 @@ export default function ProfilePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+      <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-blue-50">
+        <nav className="bg-white/80 backdrop-blur-md border-b border-gray-200">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex justify-between items-center h-16">
+              <Link href="/dashboard" className="flex items-center space-x-2">
+                <span className="text-2xl">💖</span>
+                <span className="text-xl font-bold bg-gradient-to-r from-pink-500 to-purple-600 bg-clip-text text-transparent">
+                  JECRC Dating
+                </span>
+              </Link>
+              <Link href="/dashboard" className="text-gray-700 hover:text-gray-900">
+                ← Back
+              </Link>
+            </div>
+          </div>
+        </nav>
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+          <div className="bg-white rounded-2xl shadow-xl p-8 mb-8">
+            <div className="flex items-center space-x-4 mb-6">
+              <Skeleton variant="circle" className="w-24 h-24" />
+              <div className="space-y-2 flex-1">
+                <Skeleton variant="text" className="w-48 h-8" />
+                <Skeleton variant="text" className="w-64 h-5" />
+              </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
+              {[1, 2, 3, 4, 5, 6].map((i) => (
+                <div key={i} className="bg-gray-50 rounded-xl p-4">
+                  <Skeleton variant="text" className="w-24 h-4 mb-2" />
+                  <Skeleton variant="text" className="w-full h-5" />
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -305,8 +342,24 @@ export default function ProfilePage() {
 
         {/* Photos Section */}
         <div className="bg-white rounded-2xl shadow-xl p-8">
-          <PhotoUpload photos={photos} onPhotosChange={loadPhotos} />
+          <PhotoUpload 
+            photos={photos} 
+            onPhotosChange={loadPhotos}
+            onPhotoClick={(index) => {
+              setGalleryIndex(index);
+              setGalleryOpen(true);
+            }}
+          />
         </div>
+
+        {/* Photo Gallery Modal */}
+        {galleryOpen && photos.length > 0 && (
+          <PhotoGallery
+            photos={photos.map(p => p.url)}
+            initialIndex={galleryIndex}
+            onClose={() => setGalleryOpen(false)}
+          />
+        )}
 
         {!isEditing && (
           <div className="bg-blue-50 border border-blue-200 rounded-xl p-6">

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { api } from '@/lib/api';
+import Skeleton from '@/components/ui/Skeleton';
 
 export default function LikesPage() {
   const router = useRouter();
@@ -50,8 +51,34 @@ export default function LikesPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+      <div className="min-h-screen bg-gray-50">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="flex items-center justify-between mb-8">
+            <h1 className="text-3xl font-bold text-gray-900">Likes</h1>
+            <Link
+              href="/dashboard"
+              className="px-4 py-2 text-purple-600 hover:text-purple-700 font-medium"
+            >
+              ← Back
+            </Link>
+          </div>
+          <div className="space-y-6">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="bg-white rounded-lg shadow-sm p-6">
+                <div className="flex items-center mb-4">
+                  <Skeleton variant="circle" className="w-16 h-16" />
+                  <div className="ml-4 flex-1 space-y-2">
+                    <Skeleton variant="text" className="w-32 h-5" />
+                    <Skeleton variant="text" className="w-48 h-4" />
+                  </div>
+                </div>
+                <Skeleton variant="text" className="w-full h-4 mb-2" />
+                <Skeleton variant="text" className="w-3/4 h-4 mb-4" />
+                <Skeleton variant="rectangle" className="w-full h-10 rounded-lg" />
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     );
   }

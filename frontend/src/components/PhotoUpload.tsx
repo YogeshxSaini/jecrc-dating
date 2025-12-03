@@ -13,9 +13,10 @@ interface Photo {
 interface PhotoUploadProps {
   photos: Photo[];
   onPhotosChange: () => void;
+  onPhotoClick?: (index: number) => void;
 }
 
-export default function PhotoUpload({ photos, onPhotosChange }: PhotoUploadProps) {
+export default function PhotoUpload({ photos, onPhotosChange, onPhotoClick }: PhotoUploadProps) {
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -111,10 +112,11 @@ export default function PhotoUpload({ photos, onPhotosChange }: PhotoUploadProps
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-        {photos.map((photo) => (
+        {photos.map((photo, index) => (
           <div
             key={photo.id}
-            className="relative aspect-square rounded-lg overflow-hidden bg-gray-800 group"
+            className="relative aspect-square rounded-lg overflow-hidden bg-gray-800 group cursor-pointer"
+            onClick={() => onPhotoClick?.(index)}
           >
             <img
               src={photo.url}
@@ -132,14 +134,20 @@ export default function PhotoUpload({ photos, onPhotosChange }: PhotoUploadProps
             <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2">
               {!photo.isProfilePic && (
                 <button
-                  onClick={() => handleSetProfilePic(photo.id)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleSetProfilePic(photo.id);
+                  }}
                   className="px-3 py-1 bg-purple-600 text-white text-sm rounded hover:bg-purple-700 transition"
                 >
                   Set as Profile
                 </button>
               )}
               <button
-                onClick={() => handleDeletePhoto(photo.id)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleDeletePhoto(photo.id);
+                }}
                 className="px-3 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700 transition"
               >
                 Delete

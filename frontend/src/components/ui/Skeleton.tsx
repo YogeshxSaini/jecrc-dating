@@ -74,10 +74,19 @@ export function SkeletonChatList({ count = 5 }: { count?: number }) {
 
 export function SkeletonMatchCard({ count = 4 }: { count?: number }) {
   return (
-    <div className="flex gap-4 overflow-x-auto pb-2">
+    <>
       {Array.from({ length: count }).map((_, i) => (
-        <Skeleton key={i} variant="matchCard" />
+        <div key={i} className="bg-white rounded-2xl shadow-lg overflow-hidden">
+          <div className="h-48 animate-pulse bg-gray-200 dark:bg-gray-700" />
+          <div className="p-6 space-y-3">
+            <div className="h-6 w-32 animate-pulse bg-gray-200 dark:bg-gray-700 rounded" />
+            <div className="h-4 w-48 animate-pulse bg-gray-200 dark:bg-gray-700 rounded" />
+            <div className="h-4 w-full animate-pulse bg-gray-200 dark:bg-gray-700 rounded" />
+            <div className="h-4 w-3/4 animate-pulse bg-gray-200 dark:bg-gray-700 rounded" />
+            <div className="h-5 w-40 animate-pulse bg-gray-200 dark:bg-gray-700 rounded mt-4" />
+          </div>
+        </div>
       ))}
-    </div>
+    </>
   );
 }
